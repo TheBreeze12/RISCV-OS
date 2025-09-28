@@ -1,4 +1,5 @@
-#include "type.h"
+#include "../type.h"
+#include "../def.h"
 #define WriteReg(reg, v) (*(reg) = (v))
 
 
@@ -14,9 +15,3 @@ void uart_putc(char c) {
     WriteReg(thr, c);
 }
 
-void uart_puts(const char *s) {
-    while (*s) {
-        uart_putc(*s);
-        s++;
-    }
-}

@@ -21,8 +21,15 @@ ASFLAGS = -gdwarf-2
 LDFLAGS = -z max-page-size=4096
 
 # 目标文件
-OBJS = kernel/boot/entry.o kernel/boot/main.o kernel/boot/printf.o kernel/boot/uart.o
-
+OBJS = \
+kernel/boot/entry.o \
+kernel/main.o \
+kernel/utils/printf.o \
+kernel/utils/uart.o \
+kernel/utils/console.o \
+kernel/mm/kalloc.o \
+kernel/utils/string.o \
+kernel/mm/vm.o 
 # 默认目标
 all: kernel.elf
 
@@ -31,18 +38,12 @@ kernel/boot/entry.o: kernel/boot/entry.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # 编译C文件
-kernel/boot/main.o: kernel/boot/main.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-kernel/boot/printf.o: kernel/boot/printf.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-kernel/boot/uart.o: kernel/boot/uart.c
+kernel/%.o: kernel/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # 链接生成内核镜像
-kernel.elf: $(OBJS) kernel/boot/kernel.ld
-	$(LD) $(LDFLAGS) -T kernel/boot/kernel.ld -o $@ $(OBJS)
+kernel.elf: $(OBJS) kernel/kernel.ld
+	$(LD) $(LDFLAGS) -T kernel/kernel.ld -o $@ $(OBJS)
 
 # 生成反汇编文件用于调试
 kernel.asm: kernel.elf
@@ -85,7 +86,7 @@ debug-all: kernel.elf
 
 # 清理
 clean:
-	rm -f kernel/*/*.o kernel/*/*.d kernel.elf kernel.asm kernel.sym
+	rm -f kernel/*/*.o kernel/*/*.d kernel/*.o kernel/*.d kernel.elf kernel.asm kernel.sym 
 
 
 # 完整构建和验证
