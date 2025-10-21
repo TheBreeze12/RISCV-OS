@@ -24,7 +24,6 @@ void main(void) {
   kvminit();
   kvminithart();
   trapinithart();
-  procinit();
 
   //测试函数
   // test_printf_basic();
