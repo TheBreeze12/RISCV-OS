@@ -1,4 +1,3 @@
-#include "../type.h"
 #include "../def.h"
 
 void*

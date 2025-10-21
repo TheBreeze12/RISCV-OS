@@ -22,19 +22,32 @@ LDFLAGS = -z max-page-size=4096
 
 # 目标文件
 OBJS = \
+kernel/trampoline.o \
 kernel/boot/entry.o \
+kernel/boot/start.o \
 kernel/main.o \
 kernel/utils/printf.o \
 kernel/utils/uart.o \
 kernel/utils/console.o \
 kernel/mm/kalloc.o \
 kernel/utils/string.o \
-kernel/mm/vm.o 
+kernel/mm/vm.o \
+kernel/trap/trap.o \
+kernel/trap/kernelvec.o \
+kernel/trap/syscall.o 
+# kernel/proc/proc.o
+
 # 默认目标
 all: kernel.elf
 
 # 编译汇编文件
 kernel/boot/entry.o: kernel/boot/entry.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
+kernel/trampoline.o: kernel/trampoline.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
+kernel/trap/kernelvec.o: kernel/trap/kernelvec.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # 编译C文件

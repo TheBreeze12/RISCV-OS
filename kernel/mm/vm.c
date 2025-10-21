@@ -1,6 +1,4 @@
-#include "../type.h"
 #include "../def.h"
-#include "memlayout.h"
 
 pagetable_t kernel_pagetable;
 extern char etext[];  // kernel.ld sets this to end of kernel code.
@@ -163,4 +161,34 @@ free_pagetable(pagetable_t pagetable)
     }
   }
   kfree((void*)pagetable);
+}
+
+void
+uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
+{
+  uint64 a;
+  pte_t *pte;
+
+  if((va % PGSIZE) != 0)
+    panic("uvmunmap: not aligned");
+
+  for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    if((pte = walk(pagetable, a, 0)) == 0) // leaf page table entry allocated?
+      continue;   
+    if((*pte & PTE_V) == 0)  // has physical page been allocated?
+      continue;
+    if(do_free){
+      uint64 pa = PTE2PA(*pte);
+      kfree((void*)pa);
+    }
+    *pte = 0;
+  }
+}
+
+void
+uvmfree(pagetable_t pagetable, uint64 sz)
+{
+  if(sz > 0)
+    uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
+  free_pagetable(pagetable);
 }

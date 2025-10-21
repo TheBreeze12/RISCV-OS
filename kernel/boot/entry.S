@@ -43,7 +43,7 @@ clear_bss_done:
     sb t1, 0(t0) 
 
     # 现在可以安全地跳转到C主函数了
-    call main              # 调用main()函数
+    call start              # 调用main()函数
 
 
 

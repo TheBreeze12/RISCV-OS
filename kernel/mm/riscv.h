@@ -1,6 +1,5 @@
-#include "../type.h"
 #ifndef __ASSEMBLER__
-
+#include "../type.h"
 // which hart (core) is this?
 static inline uint64
 r_mhartid()
@@ -334,6 +333,28 @@ r_ra()
 {
   uint64 x;
   asm volatile("mv %0, ra" : "=r" (x) );
+  return x;
+}
+
+static inline uint64
+r_a0()
+{
+  uint64 x;
+  asm volatile("mv %0, a0" : "=r" (x) );
+  return x;
+}
+
+static inline void
+w_a0(uint64 x)
+{
+  asm volatile("mv a0, %0" : : "r" (x));
+}
+
+static inline uint64
+r_a7()
+{
+  uint64 x;
+  asm volatile("mv %0, a7" : "=r" (x) );
   return x;
 }
 

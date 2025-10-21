@@ -1,11 +1,9 @@
 #include "def.h"
-#include "type.h"
 #include "utils/console.h"
 /* 最小RISC-V操作系统主函数
  * 验证启动流程是否正确工作
  */
 
-__attribute__((aligned(16))) char stack0[4096];
 // 测试函数
 void test_printf_basic();
 void test_printf_edge_cases();
@@ -25,21 +23,34 @@ void main(void) {
   kinit();
   kvminit();
   kvminithart();
- 
+  trapinithart();
+  procinit();
+
   //测试函数
   // test_printf_basic();
   // test_printf_edge_cases();
-  test_physical_memory();
-  test_pagetable();
+  // test_physical_memory();
+  // test_pagetable();
   // console_demo();
   // progress_bar_demo();
 
+  test_timer_interrupt();
+  printf("Timer interrupt test passed!\n");
+  test_breakpoint();
+  printf("Breakpoint test passed!\n");
+  test_syscall();  // 测试系统调用
+  printf("System call test passed!\n");
+  test_exception();
+  printf("Exception test passed!\n");
   printf("All tests passed!\n");
   printf("System initialization complete!\r\n");
   printf("Entering main loop...\r\n");
   while (1) {
   }
 }
+
+
+
 
 void delay_seconds(int seconds) {
   // 简单的忙等待延时（不精确，但可用）

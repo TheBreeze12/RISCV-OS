@@ -1,0 +1,21 @@
+CompileFlags:
+  Add:
+    - -I/home/thebreeze/riscv-os/kernel
+    - -I/home/thebreeze/riscv-os/kernel/mm
+    - -include
+    - /home/thebreeze/riscv-os/kernel/type.h
+    - -D__riscv
+    - -D__riscv_xlen=64
+    - -ffreestanding
+    - -nostdlib
+  Compiler: /usr/bin/riscv64-unknown-elf-gcc
+  
+Diagnostics:
+  ClangTidy:
+    Add: []
+    Remove: []
+  UnusedIncludes: None
+
+Index:
+  Background: Build
+

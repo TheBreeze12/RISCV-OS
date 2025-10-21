@@ -3,14 +3,19 @@
     {
       "name": "linux-gcc-x64",
       "includePath": [
-        "${workspaceFolder}/**"
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/kernel",
+        "${workspaceFolder}/kernel/mm"
+      ],
+      "forcedInclude": [
+        "${workspaceFolder}/kernel/type.h"
       ],
       "defines": [
         "__riscv",
         "__riscv_xlen=64"
       ],
-      "compilerPath": "/usr/bin/gcc",
-      "cStandard": "${default}",
+      "compilerPath": "/usr/bin/riscv64-unknown-elf-gcc",
+      "cStandard": "c11",
       "cppStandard": "${default}",
       "intelliSenseMode": "linux-gcc-x64",
       "compileCommands": "${workspaceFolder}/compile_commands.json",

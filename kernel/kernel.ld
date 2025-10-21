@@ -12,6 +12,10 @@ SECTIONS
     .text : {
         *(.text .text.*)
         . = ALIGN(4096);        /* 4KB页对齐 */
+         _trampoline = .;
+        *(trampsec)
+        . = ALIGN(0x1000);
+        ASSERT(. - _trampoline == 0x1000, "error: trampoline larger than one page");
         PROVIDE(etext = .);     /* 代码段结束标记 */
     }
 

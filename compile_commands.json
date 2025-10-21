@@ -1,0 +1,38 @@
+[
+  {
+    "directory": "/home/thebreeze/riscv-os",
+    "command": "riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -fno-pie -no-pie -I/home/thebreeze/riscv-os/kernel -c kernel/mm/riscv.h",
+    "file": "kernel/mm/riscv.h"
+  },
+  {
+    "directory": "/home/thebreeze/riscv-os",
+    "command": "riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -fno-pie -no-pie -I/home/thebreeze/riscv-os/kernel -c kernel/boot/start.c",
+    "file": "kernel/boot/start.c"
+  },
+  {
+    "directory": "/home/thebreeze/riscv-os",
+    "command": "riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -fno-pie -no-pie -I/home/thebreeze/riscv-os/kernel -c kernel/main.c",
+    "file": "kernel/main.c"
+  },
+  {
+    "directory": "/home/thebreeze/riscv-os",
+    "command": "riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -fno-pie -no-pie -I/home/thebreeze/riscv-os/kernel -c kernel/mm/kalloc.c",
+    "file": "kernel/mm/kalloc.c"
+  },
+  {
+    "directory": "/home/thebreeze/riscv-os",
+    "command": "riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -fno-pie -no-pie -I/home/thebreeze/riscv-os/kernel -c kernel/mm/vm.c",
+    "file": "kernel/mm/vm.c"
+  },
+  {
+    "directory": "/home/thebreeze/riscv-os",
+    "command": "riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -fno-pie -no-pie -I/home/thebreeze/riscv-os/kernel -c kernel/trap/trap.c",
+    "file": "kernel/trap/trap.c"
+  },
+  {
+    "directory": "/home/thebreeze/riscv-os",
+    "command": "riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -fno-pie -no-pie -I/home/thebreeze/riscv-os/kernel -c kernel/proc/proc.c",
+    "file": "kernel/proc/proc.c"
+  }
+]
+

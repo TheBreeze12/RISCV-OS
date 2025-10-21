@@ -1,5 +1,4 @@
 #include "console.h"
-#include "../type.h"
 #include <stdarg.h>
 #include "../def.h"
 
