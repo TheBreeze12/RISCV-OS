@@ -1,4 +1,14 @@
-# include "../def.h"
+#include "../type.h"
+#include "../param.h"
+#include "../def.h"
+
+// Forward declarations
+struct proc;
+struct cpu;
+struct context;
+struct file;
+struct inode;
+
 // Saved registers for kernel context switches.
 struct context {
     uint64 ra;

@@ -34,11 +34,26 @@ kernel/utils/string.o \
 kernel/mm/vm.o \
 kernel/trap/trap.o \
 kernel/trap/kernelvec.o \
-kernel/trap/syscall.o 
-# kernel/proc/proc.o
+kernel/trap/syscall.o \
+kernel/proc/proc.o \
+kernel/proc/swtch.o \
+kernel/proc/proc_test.o
+
+# 用户程序构建（最小C到二进制再转头文件）
+USER_CC = $(CROSS_COMPILE)gcc
+USER_OBJCOPY = $(CROSS_COMPILE)objcopy
+USER_OBJDUMP = $(CROSS_COMPILE)objdump
+USER_CFLAGS = -march=rv64gc -mabi=lp64 -Wall -O2 -fno-builtin -nostdlib -ffreestanding
+USER_LDFLAGS = -T user/user.ld -nostdlib -static -n --gc-sections
+
+USER_ELF = user/init.elf
+USER_BIN = user/init.bin
+USER_HDR = user/initcode.h
+USER_SRCS = user/init.c 
+USER_INCS = user/syscall.h user/user.ld
 
 # 默认目标
-all: kernel.elf
+all: $(USER_HDR) kernel.elf
 
 # 编译汇编文件
 kernel/boot/entry.o: kernel/boot/entry.S
@@ -50,12 +65,19 @@ kernel/trampoline.o: kernel/trampoline.S
 kernel/trap/kernelvec.o: kernel/trap/kernelvec.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
+kernel/proc/swtch.o: kernel/proc/swtch.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
 # 编译C文件
 kernel/%.o: kernel/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# proc.c 依赖用户程序头文件
+kernel/proc/proc.o: kernel/proc/proc.c $(USER_HDR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 # 链接生成内核镜像
-kernel.elf: $(OBJS) kernel/kernel.ld
+kernel.elf: $(OBJS) kernel/kernel.ld $(USER_HDR)
 	$(LD) $(LDFLAGS) -T kernel/kernel.ld -o $@ $(OBJS)
 
 # 生成反汇编文件用于调试
@@ -99,7 +121,8 @@ debug-all: kernel.elf
 
 # 清理
 clean:
-	rm -f kernel/*/*.o kernel/*/*.d kernel/*.o kernel/*.d kernel.elf kernel.asm kernel.sym 
+	rm -f kernel/*/*.o kernel/*/*.d kernel/*.o kernel/*.d kernel.elf kernel.asm kernel.sym user/*.o \
+		$(USER_ELF) $(USER_BIN) $(USER_HDR) 
 
 
 # 完整构建和验证
@@ -113,3 +136,22 @@ test: clean all check-layout kernel.asm kernel.sym
 
 # 包含依赖文件
 -include kernel/*/*.d 
+
+# 用户程序规则
+$(USER_ELF): $(USER_SRCS) $(USER_INCS)
+	$(USER_CC) $(USER_CFLAGS) -c user/init.c -o user/init.o
+	$(LD) $(USER_LDFLAGS) -o $(USER_ELF) user/init.o 
+
+$(USER_BIN): $(USER_ELF)
+	$(USER_OBJCOPY) -O binary $(USER_ELF) $(USER_BIN)
+
+$(USER_HDR): $(USER_BIN)
+	@echo "// generated from user/init.bin" > $(USER_HDR)
+	@echo "#ifndef INITCODE_H" >> $(USER_HDR)
+	@echo "#define INITCODE_H" >> $(USER_HDR)
+	@echo "static const unsigned char initcode[] = {" >> $(USER_HDR)
+	@hexdump -v -e '1/1 " 0x%02x,"' $(USER_BIN) | sed 's/$$/ /' >> $(USER_HDR)
+	@echo "" >> $(USER_HDR)
+	@echo "};" >> $(USER_HDR)
+	@echo "static const unsigned int initcode_size = sizeof(initcode);" >> $(USER_HDR)
+	@echo "#endif" >> $(USER_HDR)

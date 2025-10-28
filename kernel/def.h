@@ -6,6 +6,8 @@
 // Forward declarations
 struct proc;
 struct cpu;
+struct context;
+struct k_trapframe;
 // struct spinlock;
 
 // 自定义assert宏
@@ -44,6 +46,9 @@ void            kinit(void);
 
 // string.c
 void* memset(void *dst, int c, uint n);
+char* strcpy(char *dst, const char *src);
+int   sprintf(char *dst, const char *fmt, ...);
+void* memmove(void *dst, const void *src, uint n);
 
 
 // vm.c
@@ -59,6 +64,9 @@ uint64          walkaddr(pagetable_t, uint64);
 int             ismapped(pagetable_t, uint64);
 void            uvmunmap(pagetable_t, uint64, uint64, int);
 void            uvmfree(pagetable_t, uint64);
+int             uvmcopy(pagetable_t, pagetable_t, uint64);
+uint64          uvmalloc(pagetable_t, uint64, uint64);
+uint64          uvmdealloc(pagetable_t, uint64, uint64);
 
 // trap.c
 void trapinithart(void);
@@ -66,6 +74,10 @@ void test_timer_interrupt(void);
 void test_breakpoint(void);
 void test_syscall(void);
 void test_exception(void);
+void usertrap(void);
+void usertrapret(void);
+void kerneltrap(struct k_trapframe *tf);
+void sbi_set_timer(uint64 time);
 
 // 全局变量外部声明
 extern volatile int global_interrupt_count;
@@ -160,16 +172,45 @@ uint64 sys_open(void);
 uint64 sys_close(void);
 uint64 sys_exec(void);
 uint64 sys_sbrk(void);
+void syscall(void);
 
 // proc.c
+struct proc* allocproc(void);
+ void freeproc(struct proc *p);
+
 int             cpuid(void);
-void            kexit(int);
-int             kfork(void);
+int             allocpid(void);
+void            userinit(void);
+struct proc*    find_proc_by_pid(int);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
 struct cpu*     mycpu(void);
-struct proc*    myproc();
+struct proc*    myproc(void);
 void            procinit(void);
 void            scheduler(void) __attribute__((noreturn));
+void            yield(void);
+void            sched(void);
+void            sleep(void *chan);
+void            wakeup(void *chan);
+void            exit(int status);
+int             wait(uint64 addr);
+int             fork(void);
+void            forkret(void);
+int             growproc(int n);
+int             kill(int pid);
+int             killed(struct proc *p);
+void            setkilled(struct proc *p);
+
+// proc_test.c
+void            run_all_proc_tests(void);
+void            test_process_creation(void);
+void            test_proc_table(void);
+void            test_context_switch(void);
+void            test_scheduler(void);
+void            test_synchronization(void);
+void            debug_proc_table(void);
+
+// swtch.S
+void            swtch(struct context *, struct context *);
 
 

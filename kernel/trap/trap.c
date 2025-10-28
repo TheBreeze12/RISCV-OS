@@ -1,15 +1,13 @@
-#include "../def.h"
+
+#include "../proc/proc.h"
 
 // 全局变量定义
 volatile int global_interrupt_count = 0;
 // 声明汇编函数
-extern char trampoline[], uservec[];
+extern char trampoline[], uservec[], userret[];
 
 
 
-void yield(void){
-    // printf("temp yield\n");
-}
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -369,5 +367,134 @@ void test_exception(void){
     // volatile uint64 *ptr = (uint64*)0x80000003;  // 未对齐的地址
     // *ptr = 0x1234;  // 尝试写入
     printf("Skipped: Would cause panic\n");
+}
+
+// ============================================================================
+// 用户态陷入处理 - usertrap
+// 处理从用户态进入内核态的陷入
+// ============================================================================
+void
+usertrap(void)
+{
+//   int which_dev = 0;
+
+  // printf("[TRAP] ============ usertrap called! ============\n");
+  // printf("[TRAP] sepc=%x, sstatus=%x, scause=%x\n", r_sepc(), r_sstatus(), r_scause());
+
+  if((r_sstatus() & SSTATUS_SPP) != 0)
+    panic("usertrap: not from user mode");
+
+  // 设置内核trap向量，以便内核态的trap能被正确处理
+  w_stvec((uint64)kernelvec);
+
+  struct proc *p = myproc();
+  
+  // 保存用户程序计数器
+  p->trapframe->epc = r_sepc();
+  // printf("[TRAP] epc=%x\n", p->trapframe->epc);
+
+  uint64 scause = r_scause();
+  
+  // printf("[TRAP] usertrap: pid=%d, scause=%x, epc=%x\n", p->pid, scause, p->trapframe->epc);
+  
+  if(scause & CAUSE_INTERRUPT_FLAG) {
+    // 处理中断
+    uint64 interrupt_cause = scause & ~CAUSE_INTERRUPT_FLAG;
+    switch(interrupt_cause) {
+      case CAUSE_TIMER_INTERRUPT:
+        // 时钟中断，触发调度
+        if(cpuid() == 0) {
+          sbi_set_timer(1000000);
+        }
+        yield();
+        break;
+      default:
+        printf("usertrap: unexpected interrupt scause %x pid=%d\n", scause, p->pid);
+        printf("sepc=%x stval=%x\n", r_sepc(), r_stval());
+        setkilled(p);
+    }
+  } else if(scause == CAUSE_USER_ECALL) {
+    // 系统调用
+    if(killed(p))
+      exit(-1);
+
+    // sepc指向ecall指令，需要+4指向下一条指令
+    p->trapframe->epc += 4;
+
+    // 启用中断，允许在系统调用期间响应中断
+    intr_on();
+
+    // 处理系统调用
+    syscall();
+  } else if(scause == CAUSE_LOAD_ACCESS_FAULT) {
+    // 加载访问故障
+    printf("usertrap: load access fault at va=%x, pid=%d\n", r_stval(), p->pid);
+    setkilled(p);
+  } else if(scause == CAUSE_LOAD_PAGE_FAULT) {
+    // 加载页错误
+    printf("usertrap: load page fault at va=%x, pid=%d\n", r_stval(), p->pid);
+    setkilled(p);
+  } else if(scause == CAUSE_STORE_PAGE_FAULT) {
+    // 存储页错误
+    printf("usertrap: store page fault at va=%x, pid=%d\n", r_stval(), p->pid);
+    setkilled(p);
+  } else if(scause == CAUSE_INSTRUCTION_PAGE_FAULT) {
+    // 指令页错误
+    printf("usertrap: instruction page fault at va=%x, pid=%d\n", r_stval(), p->pid);
+    setkilled(p);
+  } else {
+    printf("usertrap: unexpected scause %x pid=%d\n", scause, p->pid);
+    printf("sepc=%x stval=%x\n", r_sepc(), r_stval());
+    setkilled(p);
+  }
+
+  if(killed(p))
+    exit(-1);
+
+  // 返回用户态
+  usertrapret();
+}
+
+// ============================================================================
+// 返回用户态 - usertrapret
+// 设置好trapframe和寄存器，然后跳转回用户空间
+// ============================================================================
+void
+usertrapret(void)
+{
+  struct proc *p = myproc();
+
+  // printf("[RET] usertrapret: pid=%d, switching to user mode...\n", p->pid);
+
+  // 关闭中断，防止在切换页表时被打断
+  intr_off();
+
+  // 设置用户态trap向量为trampoline中的uservec
+  uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
+  w_stvec(trampoline_uservec);
+
+  // 设置trapframe的值，为返回用户态做准备
+  p->trapframe->kernel_satp = r_satp();         // 内核页表
+  p->trapframe->kernel_sp = p->kstack + PGSIZE; // 内核栈顶
+  p->trapframe->kernel_trap = (uint64)usertrap; // 用户trap处理函数
+  p->trapframe->kernel_hartid = r_tp();         // 硬件线程ID
+
+  // 设置sstatus寄存器
+  unsigned long x = r_sstatus();
+  x &= ~SSTATUS_SPP;  // 清除SPP位，返回用户态
+  x |= SSTATUS_SPIE;  // 启用用户态中断
+  w_sstatus(x);
+
+  // 设置返回地址为用户程序的epc
+  w_sepc(p->trapframe->epc);
+
+  // 切换到用户页表
+  uint64 satp = MAKE_SATP(p->pagetable);
+  // printf("[RET] satp=%x\n", satp);
+  // 跳转到trampoline.S中的userret
+  uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
+  
+  ((void (*)(uint64))trampoline_userret)(satp);
+  
 }
 

@@ -1,3 +1,4 @@
+       
         #
         # low-level code to handle traps from user space into
         # the kernel, and returns from kernel to user.
@@ -10,8 +11,9 @@
         # a page boundary.
         #
 
+
 #include "./mm/riscv.h"
-#include "./mm/memlayout.h"
+#include "./mm/memlayout.h" 
 
 .section trampsec
 .globl trampoline
@@ -103,8 +105,11 @@ userret:
         # return from kernel to user.
 
         # switch to the user page table.
+        
         sfence.vma zero, zero
+        
         csrw satp, a0
+        
         sfence.vma zero, zero
 
         li a0, TRAPFRAME

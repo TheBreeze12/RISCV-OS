@@ -24,6 +24,7 @@ void main(void) {
   kvminit();
   kvminithart();
   trapinithart();
+  procinit();
 
   //测试函数
   // test_printf_basic();
@@ -33,19 +34,34 @@ void main(void) {
   // console_demo();
   // progress_bar_demo();
 
-  test_timer_interrupt();
-  printf("Timer interrupt test passed!\n");
-  test_breakpoint();
-  printf("Breakpoint test passed!\n");
-  test_syscall();  // 测试系统调用
-  printf("System call test passed!\n");
-  test_exception();
-  printf("Exception test passed!\n");
-  printf("All tests passed!\n");
+  // test_timer_interrupt();
+  // printf("Timer interrupt test passed!\n");
+  // test_breakpoint();
+  // printf("Breakpoint test passed!\n");
+  // test_syscall();  // 测试系统调用
+  // printf("System call test passed!\n");
+  // test_exception();
+  // printf("Exception test passed!\n");
+  // test_process_creation();
+  // printf("Process creation test passed!\n");
+  // test_proc_table();
+  // printf("Process table test passed!\n");
+
   printf("System initialization complete!\r\n");
-  printf("Entering main loop...\r\n");
-  while (1) {
-  }
+  
+  // 创建第一个用户进程
+  userinit();
+  userinit();
+  userinit();
+  userinit();
+  
+  // 启动时钟中断
+  sbi_set_timer(1000000);
+  
+  printf("Entering scheduler...\r\n");
+  // 进入调度器循环，永不返回
+  scheduler();
+
 }
 
 
