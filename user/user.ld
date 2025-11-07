@@ -4,13 +4,26 @@ ENTRY( main )
 SECTIONS
 {
   . = 0x0;
+  
   .text : {
-    *(.text)
+    *(.text .text.*)
+    . = ALIGN(0x1000);
   }
+  
+  .rodata : {
+    *(.rodata .rodata.*)
+  }
+  
   .data : {
-    *(.data)
+    *(.data .data.*)
   }
+  
   .bss : {
-    *(.bss)
+    *(.bss .bss.*)
+    *(COMMON)
+  }
+  
+  /DISCARD/ : {
+    *(.eh_frame .note.GNU-stack)
   }
 }

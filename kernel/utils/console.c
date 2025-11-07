@@ -3,6 +3,7 @@
 #include "../def.h"
 
 #define BACKSPACE 0x100
+#define DELETE    0x7F  // Delete键的ASCII码
 
 void
 cons_putc(int c)
@@ -19,6 +20,23 @@ void cons_puts(const char *s){
         cons_putc(*s);
         s++;
     }
+}
+
+// 从控制台读取一个字符
+int cons_getc(void) {
+    int c = uart_getc();
+    
+    // 处理退格键和删除键
+    if (c == '\r' || c == '\n') {
+        return '\n';  // 统一返回换行符
+    }
+    
+    // 将退格键和删除键统一转换为BACKSPACE
+    if (c == '\b' || c == DELETE) {
+        return BACKSPACE;
+    }
+    
+    return c;
 }
 
 

@@ -51,16 +51,11 @@ void main(void) {
   
   // 创建第一个用户进程
   userinit();
-  userinit();
-  userinit();
-  userinit();
-  
-  // 启动时钟中断
-  sbi_set_timer(1000000);
   
   printf("Entering scheduler...\r\n");
   // 进入调度器循环，永不返回
   scheduler();
+  panic("never reach here");
 
 }
 

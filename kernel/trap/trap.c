@@ -36,6 +36,7 @@ void timer_interrupt(void) {
     // 2. 处理定时器事件
     // printf("time: %d\n", time);
     // 3. 触发任务调度
+    wakeup_timer();
     yield();
     // 4. 递增全局中断计数器
     global_interrupt_count++;

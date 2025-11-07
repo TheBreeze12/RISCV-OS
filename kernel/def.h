@@ -34,10 +34,12 @@ void printf_color(const char *color, const char *fmt, ...);
 
 //uart.c
 void uart_putc(char c);
+char uart_getc(void);
 
 //console.c
 void cons_putc(int c);
 void cons_puts(const char *s);
+int cons_getc(void);
 
 // kalloc.c
 void*           kalloc(void);
@@ -47,6 +49,9 @@ void            kinit(void);
 // string.c
 void* memset(void *dst, int c, uint n);
 char* strcpy(char *dst, const char *src);
+int   strcmp(const char *p, const char *q);
+int   strlen(const char *s);
+char* safestrcpy(char *s, const char *t, int n);
 int   sprintf(char *dst, const char *fmt, ...);
 void* memmove(void *dst, const void *src, uint n);
 
@@ -67,7 +72,10 @@ void            uvmfree(pagetable_t, uint64);
 int             uvmcopy(pagetable_t, pagetable_t, uint64);
 uint64          uvmalloc(pagetable_t, uint64, uint64);
 uint64          uvmdealloc(pagetable_t, uint64, uint64);
-
+int             copyout(pagetable_t, uint64, char *, uint64);
+int             copyin(pagetable_t, char *, uint64, uint64);
+int             copyin_str(pagetable_t, char *, uint64, uint64);
+void            uvmclear(pagetable_t, uint64);
 // trap.c
 void trapinithart(void);
 void test_timer_interrupt(void);
@@ -117,7 +125,7 @@ extern volatile int global_interrupt_count;
 #define SYS_CLOSE   8
 #define SYS_EXEC    9
 #define SYS_SBRK    10
-
+#define SYS_SLEEP   11
 // 陷阱帧结构体定义
 struct k_trapframe {
      /*   0 */ uint64 ra;
@@ -200,7 +208,8 @@ int             growproc(int n);
 int             kill(int pid);
 int             killed(struct proc *p);
 void            setkilled(struct proc *p);
-
+void            wakeup_timer(void);
+void            sleep_ticks(uint64 ticks);
 // proc_test.c
 void            run_all_proc_tests(void);
 void            test_process_creation(void);
@@ -213,4 +222,14 @@ void            debug_proc_table(void);
 // swtch.S
 void            swtch(struct context *, struct context *);
 
+// exec.c
+int exec(char *path, char **argv);
 
+// file.c
+struct file* filealloc(void);
+void fileclose(struct file*);
+struct file* filedup(struct file*);
+int fileread(struct file*, uint64 addr, uint offset, int n);
+
+// namei.c
+struct file* namei(char *path);

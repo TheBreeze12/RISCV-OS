@@ -164,7 +164,8 @@ void test_context_switch(void)
   
   // 注意：这是一个简化的测试，实际的上下文切换更复杂
   // 在真实场景中，上下文包含在进程结构体中，由调度器管理
-  
+  context_switch_target1();
+  context_switch_target2();
   printf("Context switch test requires scheduler to be running\n");
   printf("Will be tested as part of scheduler test\n");
   

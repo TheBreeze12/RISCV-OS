@@ -122,7 +122,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
   strcpy(p->name, "allocproc");
-
+  p->wake_time = 0;
   return p;
 }
 
@@ -152,6 +152,7 @@ freeproc(struct proc *p)
   p->name[0] = 0;
   p->chan = 0;
   p->killed = 0;
+  p->wake_time = 0;
   p->xstate = 0;
   p->state = UNUSED;
 }
@@ -164,7 +165,6 @@ pagetable_t
 proc_pagetable(struct proc *p)
 {
   pagetable_t pagetable;
-
   // 创建空页表
   pagetable = create_pagetable();
   if(pagetable == 0)
@@ -176,7 +176,7 @@ proc_pagetable(struct proc *p)
   // to/from user space, so not PTE_U.
   if(mappages(pagetable, TRAMPOLINE, PGSIZE,
     (uint64)trampoline, PTE_R | PTE_X) < 0){
-  uvmfree(pagetable, 0);
+     uvmfree(pagetable, 0);
   return 0;
 }
 
@@ -224,41 +224,21 @@ procinit(void)
 // ============================================================================
 
 // 引入外部生成的用户程序镜像
-#include "/home/thebreeze/riscv-os/user/initcode.h"
+
 
 void
 userinit(void)
 {
   struct proc *p;
-  pte_t *pte;
 
   p = allocproc();
+  // initproc = p;
+  
   if(p == 0)
-    panic("userinit: allocproc failed");
+  panic("userinit: allocproc failed");
 
-  // 分配足够的用户内存并复制initcode
-  p->sz = uvmalloc(p->pagetable, 0, PGROUNDUP(initcode_size));
-  if(p->sz == 0)
-    panic("userinit: uvmalloc failed");
-  
-  // 获取物理地址并转换为内核虚拟地址
-  pte = walk(p->pagetable, 0, 0);
-  if(pte == 0)
-    panic("userinit: walk failed");
-  
-  uint64 pa = PTE2PA(*pte);
-  memmove((void*)pa, initcode, initcode_size);
-  
-  
-  
-  // 设置trapframe，准备返回用户态
-  memset(p->trapframe, 0, sizeof(*p->trapframe));
-  p->trapframe->epc = 0;  // 用户程序从地址0开始
-  p->trapframe->sp = PGSIZE;  // 栈指针设置在页的顶部（简单起见用一页栈）
-  
-  strcpy(p->name, "initcode");
   p->state = RUNNABLE;
-  
+
 }
 
 // ============================================================================
@@ -318,9 +298,7 @@ yield(void)
   // printf("yield: %d\n", p->state);
     
   p->state = RUNNABLE;
-  intr_off();
   sched();
-  intr_on();
 
 }
 
@@ -336,6 +314,7 @@ yield(void)
 void
 sched(void)
 {
+  intr_off();
   struct proc *p = myproc();
   struct cpu *c = mycpu();
 
@@ -353,6 +332,7 @@ sched(void)
 
   // 切换回调度器上下文
   swtch(&p->context, &c->context);
+  intr_on();
 }
 
 // ============================================================================
@@ -466,6 +446,9 @@ wait(uint64 addr)
           if(addr != 0) {
             // 复制退出状态到用户空间
             // TODO: copyout to user space
+            if(copyout(p->pagetable, addr, (char *)&pp->xstate, sizeof(pp->xstate)) < 0){
+              return -1;
+            }
           }
           freeproc(pp);
           return pid;
@@ -532,19 +515,32 @@ fork(void)
 // allocproc将ra设置为forkret，所以新进程第一次运行会进入这里
 // ============================================================================
 
+
 void
 forkret(void)
 {
   static int first = 1;
+  struct proc *p = myproc();
 
-  // 第一个进程需要初始化文件系统
+
   if (first) {
-    first = 0;
-    // TODO: fsinit(ROOTDEV);
+    // File system initialization must be run in the context of a
+    // regular process (e.g., because it calls sleep), and thus cannot
+    // be run from main().
     printf("第一个进程初始化，准备切换到用户态...\n");
+
+    first = 0;
+    // ensure other cores see first=0.
+
+    // We can invoke kexec() now that file system is initialized.
+    // Put the return value (argc) of kexec into a0.
+    p->trapframe->a0 = exec("/init", (char *[]){ "/init", 0 });
+    if (p->trapframe->a0 == -1) {
+      panic("exec");
+    }
   }
 
-  // 返回到用户空间
+  // return to user space, mimicing usertrap()'s return.
   usertrapret();
 }
 
@@ -619,3 +615,57 @@ cpuid()
   return 0;
 }
 
+
+
+// ============================================================================
+// 基于时间的睡眠 - sleep_ticks()
+// 让进程睡眠指定的时钟周期数
+// ============================================================================
+
+void
+sleep_ticks(uint64 ticks)
+{
+  struct proc *p = myproc();
+  uint64 wake_time;
+  
+  if(p == 0)
+    panic("sleep_ticks: no proc");
+  
+  // 计算唤醒时间（当前时间 + 睡眠时长）
+  wake_time = r_time() + ticks;
+  
+  // 设置唤醒时间和睡眠通道（使用 wake_time 作为唯一标识）
+  p->wake_time = wake_time;
+  p->chan = (void*)wake_time;  // 使用 wake_time 作为 chan
+  p->state = SLEEPING;
+  
+  // 切换到调度器
+  sched();
+  
+  // 被唤醒后，清除 chan
+  p->chan = 0;
+  p->wake_time = 0;
+}
+
+// ============================================================================
+// 唤醒所有到期的睡眠进程
+// 在定时器中断中调用
+// ============================================================================
+
+void
+wakeup_timer(void)
+{
+  struct proc *p;
+  uint64 now = r_time();
+  
+  // 遍历所有进程，唤醒到期的进程
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->state == SLEEPING && p->wake_time != 0) {
+      if(now >= p->wake_time) {
+        // 时间到了，唤醒进程
+        p->state = RUNNABLE;
+        p->wake_time = 0;
+      }
+    }
+  }
+}

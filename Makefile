@@ -37,7 +37,10 @@ kernel/trap/kernelvec.o \
 kernel/trap/syscall.o \
 kernel/proc/proc.o \
 kernel/proc/swtch.o \
-kernel/proc/proc_test.o
+kernel/proc/proc_test.o \
+kernel/fs/file.o \
+kernel/fs/namei.o \
+kernel/exec.o
 
 # 用户程序构建（最小C到二进制再转头文件）
 USER_CC = $(CROSS_COMPILE)gcc
@@ -46,14 +49,21 @@ USER_OBJDUMP = $(CROSS_COMPILE)objdump
 USER_CFLAGS = -march=rv64gc -mabi=lp64 -Wall -O2 -fno-builtin -nostdlib -ffreestanding
 USER_LDFLAGS = -T user/user.ld -nostdlib -static -n --gc-sections
 
-USER_ELF = user/init.elf
-USER_BIN = user/init.bin
-USER_HDR = user/initcode.h
-USER_SRCS = user/init.c 
+# 用户程序列表（每个程序一个.c文件，生成对应的.elf文件）
+USER_PROGRAMS = init hello
+USER_COMMON_SRCS = user/printf.c user/scanf.c user/shell.c
+USER_COMMON_OBJS = user/printf.o user/scanf.o user/shell.o
 USER_INCS = user/syscall.h user/user.ld
 
+# 生成所有ELF文件列表
+USER_ELFS = $(addprefix user/,$(addsuffix .elf,$(USER_PROGRAMS)))
+
+# 主程序（用于生成initcode.h）
+USER_ELF = user/init.elf
+USER_HDR = user/initcode.h
+
 # 默认目标
-all: $(USER_HDR) kernel.elf
+all: $(USER_HDR) user-programs kernel.elf
 
 # 编译汇编文件
 kernel/boot/entry.o: kernel/boot/entry.S
@@ -96,9 +106,6 @@ check-layout: kernel.elf
 	@echo "=== 关键符号地址 ==="
 	$(NM) $< | grep -E "(start|end|text|bss|etext|edata)"
 
-# 在QEMU中运行（需要安装qemu-system-riscv64）
-run: kernel.elf
-	qemu-system-riscv64 -machine virt -bios none -kernel $< -m 128M -smp 1 -nographic
 
 # 调试模式运行
 debug: kernel.elf
@@ -119,11 +126,20 @@ debug-all: kernel.elf
 	@echo "将在后台启动QEMU，然后启动GDB..."
 	@(qemu-system-riscv64 -machine virt -bios none -kernel $< -m 128M -smp 1 -nographic -s -S &) && sleep 2 && gdb-multiarch -ex "target remote :1234" -ex "symbol-file kernel.elf" kernel.elf
 
-# 清理
-clean:
-	rm -f kernel/*/*.o kernel/*/*.d kernel/*.o kernel/*.d kernel.elf kernel.asm kernel.sym user/*.o \
-		$(USER_ELF) $(USER_BIN) $(USER_HDR) 
 
+clean-all:
+	rm -f kernel/*/*.o kernel/*/*.d kernel/*.o kernel/*.d kernel.elf kernel.asm kernel.sym \
+		user/*.o user/*.elf $(USER_HDR) 
+
+clean:
+	rm -f kernel/*/*.o kernel/*/*.d kernel/*.o kernel/*.d 
+
+
+# 在QEMU中运行（需要安装qemu-system-riscv64）
+run: kernel.elf
+	qemu-system-riscv64 -machine virt -bios none -kernel $< -m 128M -smp 1 -nographic
+
+qemu: run clean
 
 # 完整构建和验证
 test: clean all check-layout kernel.asm kernel.sym 
@@ -132,26 +148,46 @@ test: clean all check-layout kernel.asm kernel.sym
 	@echo "运行: make run"
 	@echo "调试: make debug (然后在另一终端运行 gdb-multiarch kernel.elf)"
 
-.PHONY: all clean run debug debug-all gdb test check-layout
+.PHONY: all clean run debug debug-all gdb test check-layout user-programs fsimg
 
 # 包含依赖文件
 -include kernel/*/*.d 
 
-# 用户程序规则
-$(USER_ELF): $(USER_SRCS) $(USER_INCS)
+# 编译公共库文件（只编译一次）
+$(USER_COMMON_OBJS): user/%.o: user/%.c $(USER_INCS)
+	$(USER_CC) $(USER_CFLAGS) -c $< -o $@
+
+# 为每个用户程序构建ELF文件
+# init程序需要链接shell等库
+user/init.elf: user/init.c $(USER_COMMON_OBJS) $(USER_INCS)
 	$(USER_CC) $(USER_CFLAGS) -c user/init.c -o user/init.o
-	$(LD) $(USER_LDFLAGS) -o $(USER_ELF) user/init.o 
+	$(LD) $(USER_LDFLAGS) -o $@ user/init.o $(USER_COMMON_OBJS)
 
-$(USER_BIN): $(USER_ELF)
-	$(USER_OBJCOPY) -O binary $(USER_ELF) $(USER_BIN)
+# 其他独立程序（如hello）
+user/hello.elf: user/hello.c user/printf.o $(USER_INCS)
+	$(USER_CC) $(USER_CFLAGS) -c user/hello.c -o user/hello.o
+	$(LD) $(USER_LDFLAGS) -o $@ user/hello.o user/printf.o
 
-$(USER_HDR): $(USER_BIN)
-	@echo "// generated from user/init.bin" > $(USER_HDR)
+# 通用规则：为其他程序构建ELF（如果只有单个源文件）
+user/%.elf: user/%.c user/printf.o $(USER_INCS)
+	@if [ "$*" != "init" ] && [ "$*" != "hello" ]; then \
+		$(USER_CC) $(USER_CFLAGS) -c $< -o user/$*.o; \
+		$(LD) $(USER_LDFLAGS) -o $@ user/$*.o user/printf.o; \
+	fi
+
+# 构建所有用户程序
+user-programs: $(USER_ELFS)
+	@echo "所有用户程序构建完成: $(USER_ELFS)"
+
+
+$(USER_HDR): $(USER_ELF)
+	@echo "// generated from user/init.elf" > $(USER_HDR)
 	@echo "#ifndef INITCODE_H" >> $(USER_HDR)
 	@echo "#define INITCODE_H" >> $(USER_HDR)
 	@echo "static const unsigned char initcode[] = {" >> $(USER_HDR)
-	@hexdump -v -e '1/1 " 0x%02x,"' $(USER_BIN) | sed 's/$$/ /' >> $(USER_HDR)
+	@hexdump -v -e '1/1 " 0x%02x,"' $(USER_ELF) | sed 's/$$/ /' >> $(USER_HDR)
 	@echo "" >> $(USER_HDR)
 	@echo "};" >> $(USER_HDR)
 	@echo "static const unsigned int initcode_size = sizeof(initcode);" >> $(USER_HDR)
 	@echo "#endif" >> $(USER_HDR)
+
