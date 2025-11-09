@@ -1,6 +1,6 @@
 #include "console.h"
 #include <stdarg.h>
-#include "../def.h"
+#include "../include/def.h"
 
 #define BACKSPACE 0x100
 #define DELETE    0x7F  // Delete键的ASCII码

@@ -1,5 +1,5 @@
 #include "file.h"
-#include "../def.h"
+#include "../include/def.h"
 #include "/home/thebreeze/riscv-os/user/initcode.h"
 
 // 简化的文件查找：直接根据程序名返回预编译的 ELF 数据

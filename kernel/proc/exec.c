@@ -1,6 +1,6 @@
-#include "proc/proc.h"
-#include "elf.h"
-#include "fs/file.h"
+#include "proc.h"
+#include "../include/elf.h"
+#include "../fs/file.h"
 
 static int loadseg(pagetable_t pagetable, uint64 va, struct file *f, uint offset, uint filesz);
 

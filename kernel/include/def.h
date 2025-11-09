@@ -1,7 +1,10 @@
-#include "mm/riscv.h"
+#ifndef DEF_H
+#define DEF_H
+
+#include "riscv.h"
 #include "type.h"
 #include "param.h"
-#include "mm/memlayout.h"
+#include "../mm/memlayout.h"
 
 // Forward declarations
 struct proc;
@@ -233,3 +236,5 @@ int fileread(struct file*, uint64 addr, uint offset, int n);
 
 // namei.c
 struct file* namei(char *path);
+
+#endif // DEF_H

@@ -1,4 +1,4 @@
-#include "../def.h"
+#include "../include/def.h"
 #define WriteReg(reg, v) (*(reg) = (v))
 #define ReadReg(reg) (*(reg))
 

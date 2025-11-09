@@ -1,8 +1,8 @@
 // 用户程序入口点 - Shell程序
-#include "syscall.h"
-#include "printf.h"
-#include "scanf.h"
-#include "shell.h"
+#include "./utils/syscall.h"
+#include "./utils/printf.h"
+#include "./utils/scanf.h"
+#include "./utils/shell.h"
 // 用户程序入口点
 
 void test_scanf(void);

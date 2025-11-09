@@ -2,6 +2,7 @@
 #define FSIMG_H
 
 #include "../type.h"
+#include "../include/def.h"
 
 // 文件系统镜像格式定义
 #define FS_MAGIC "RISCVFS"

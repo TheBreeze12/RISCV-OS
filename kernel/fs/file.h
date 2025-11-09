@@ -1,4 +1,4 @@
-#include "../type.h"
+#include "../include/type.h"
 // 文件结构（简化版，暂时不使用 inode）
 struct file {
     enum { FD_NONE, FD_PIPE, FD_INODE } type;

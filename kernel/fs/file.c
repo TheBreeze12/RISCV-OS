@@ -1,5 +1,5 @@
 #include "file.h"
-#include "../def.h"
+#include "../include/def.h"
 
 struct {
   struct file file[NFILE];

@@ -1,4 +1,4 @@
-#include "def.h"
+#include "include/def.h"
 #include "utils/console.h"
 /* 最小RISC-V操作系统主函数
  * 验证启动流程是否正确工作

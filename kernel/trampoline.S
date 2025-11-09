@@ -12,7 +12,7 @@
         #
 
 
-#include "./mm/riscv.h"
+#include "./include/riscv.h"
 #include "./mm/memlayout.h" 
 
 .section trampsec

@@ -40,7 +40,7 @@ kernel/proc/swtch.o \
 kernel/proc/proc_test.o \
 kernel/fs/file.o \
 kernel/fs/namei.o \
-kernel/exec.o
+kernel/proc/exec.o
 
 # 用户程序构建（最小C到二进制再转头文件）
 USER_CC = $(CROSS_COMPILE)gcc
@@ -51,9 +51,9 @@ USER_LDFLAGS = -T user/user.ld -nostdlib -static -n --gc-sections
 
 # 用户程序列表（每个程序一个.c文件，生成对应的.elf文件）
 USER_PROGRAMS = init hello
-USER_COMMON_SRCS = user/printf.c user/scanf.c user/shell.c
-USER_COMMON_OBJS = user/printf.o user/scanf.o user/shell.o
-USER_INCS = user/syscall.h user/user.ld
+USER_COMMON_SRCS = user/utils/printf.c user/utils/scanf.c user/utils/shell.c
+USER_COMMON_OBJS = user/utils/printf.o user/utils/scanf.o user/utils/shell.o
+USER_INCS = user/utils/syscall.h user/user.ld
 
 # 生成所有ELF文件列表
 USER_ELFS = $(addprefix user/,$(addsuffix .elf,$(USER_PROGRAMS)))
@@ -63,7 +63,7 @@ USER_ELF = user/init.elf
 USER_HDR = user/initcode.h
 
 # 默认目标
-all: $(USER_HDR) user-programs kernel.elf
+all: $(USER_HDR)  kernel.elf
 
 # 编译汇编文件
 kernel/boot/entry.o: kernel/boot/entry.S
@@ -153,9 +153,6 @@ test: clean all check-layout kernel.asm kernel.sym
 # 包含依赖文件
 -include kernel/*/*.d 
 
-# 编译公共库文件（只编译一次）
-$(USER_COMMON_OBJS): user/%.o: user/%.c $(USER_INCS)
-	$(USER_CC) $(USER_CFLAGS) -c $< -o $@
 
 # 为每个用户程序构建ELF文件
 # init程序需要链接shell等库
@@ -163,21 +160,7 @@ user/init.elf: user/init.c $(USER_COMMON_OBJS) $(USER_INCS)
 	$(USER_CC) $(USER_CFLAGS) -c user/init.c -o user/init.o
 	$(LD) $(USER_LDFLAGS) -o $@ user/init.o $(USER_COMMON_OBJS)
 
-# 其他独立程序（如hello）
-user/hello.elf: user/hello.c user/printf.o $(USER_INCS)
-	$(USER_CC) $(USER_CFLAGS) -c user/hello.c -o user/hello.o
-	$(LD) $(USER_LDFLAGS) -o $@ user/hello.o user/printf.o
 
-# 通用规则：为其他程序构建ELF（如果只有单个源文件）
-user/%.elf: user/%.c user/printf.o $(USER_INCS)
-	@if [ "$*" != "init" ] && [ "$*" != "hello" ]; then \
-		$(USER_CC) $(USER_CFLAGS) -c $< -o user/$*.o; \
-		$(LD) $(USER_LDFLAGS) -o $@ user/$*.o user/printf.o; \
-	fi
-
-# 构建所有用户程序
-user-programs: $(USER_ELFS)
-	@echo "所有用户程序构建完成: $(USER_ELFS)"
 
 
 $(USER_HDR): $(USER_ELF)

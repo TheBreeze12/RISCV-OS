@@ -1,6 +1,6 @@
-#include "../type.h"
-#include "../param.h"
-#include "../def.h"
+#include "../include/type.h"
+#include "../include/param.h"
+#include "../include/def.h"
 
 // Forward declarations
 struct proc;

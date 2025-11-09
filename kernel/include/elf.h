@@ -1,4 +1,5 @@
 // ELF 文件格式定义
+#include "def.h"
 #define ELF_MAGIC 0x464C457FU  // "\x7FELF" in little endian
 
 // ELF 文件头

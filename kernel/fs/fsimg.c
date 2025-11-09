@@ -1,6 +1,6 @@
 #include "fsimg.h"
 #include "file.h"
-#include "../def.h"
+#include "../include/def.h"
 
 // 文件系统镜像在内存中的位置（非static，供namei.c使用）
 void *fs_image = 0;

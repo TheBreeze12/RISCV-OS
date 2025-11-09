@@ -1,4 +1,4 @@
-#include "../def.h"
+#include "../include/def.h"
 
 void*
 memset(void *dst, int c, uint n)

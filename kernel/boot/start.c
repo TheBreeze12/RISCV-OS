@@ -1,7 +1,7 @@
 // #include "types.h"
 // #include "param.h"
 // #include "riscv.h"
-#include "../def.h"
+#include "../include/def.h"
 
 void main();
 void timerinit();

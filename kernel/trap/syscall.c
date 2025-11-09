@@ -1,7 +1,7 @@
 
 #include "../proc/proc.h"
 #include "../utils/console.h"
-#include "../param.h"
+#include "../include/param.h"
 
 // 声明exec函数
 extern int exec(char *path, char **argv);
