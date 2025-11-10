@@ -20,6 +20,7 @@ ASFLAGS = -gdwarf-2
 # 链接选项
 LDFLAGS = -z max-page-size=4096
 
+
 # 目标文件
 OBJS = \
 kernel/trampoline.o \
@@ -42,43 +43,63 @@ kernel/fs/file.o \
 kernel/fs/namei.o \
 kernel/proc/exec.o
 
-# 用户程序构建（最小C到二进制再转头文件）
+
+# 用户程序构建配置
+U = user
+K = kernel
+
 USER_CC = $(CROSS_COMPILE)gcc
-USER_OBJCOPY = $(CROSS_COMPILE)objcopy
-USER_OBJDUMP = $(CROSS_COMPILE)objdump
 USER_CFLAGS = -march=rv64gc -mabi=lp64 -Wall -O2 -fno-builtin -nostdlib -ffreestanding
-USER_LDFLAGS = -T user/user.ld -nostdlib -static -n --gc-sections
+USER_LDFLAGS = -T $(U)/user.ld -nostdlib -static -n --gc-sections
 
-# 用户程序列表（每个程序一个.c文件，生成对应的.elf文件）
-USER_PROGRAMS = init hello
-USER_COMMON_SRCS = user/utils/printf.c user/utils/scanf.c user/utils/shell.c
-USER_COMMON_OBJS = user/utils/printf.o user/utils/scanf.o user/utils/shell.o
-USER_INCS = user/utils/syscall.h user/user.ld
+# 用户程序公共库
+USER_COMMON_OBJS = $(U)/utils/printf.o $(U)/utils/scanf.o $(U)/utils/shell.o
+USER_INCS = $(U)/utils/syscall.h $(U)/user.ld
 
-# 生成所有ELF文件列表
-USER_ELFS = $(addprefix user/,$(addsuffix .elf,$(USER_PROGRAMS)))
+# 用户程序库（类似 xv6 的 ULIB）
+ULIB = $(U)/utils/printf.o $(U)/utils/scanf.o $(U)/utils/shell.o
 
-# 主程序（用于生成initcode.h）
-USER_ELF = user/init.elf
-USER_HDR = user/initcode.h
+# 主程序（用于生成initcode.h，现在使用 _init）
+USER_ELF = $(U)/_init
+USER_HDR = $(U)/initcode.h
+
+# 用户程序列表（类似 xv6 的 UPROGS）
+# 注意：程序名以 _ 开头，mkfs 会自动去掉下划线
+UPROGS = \
+	$(U)/_init \
+	$(U)/_hello \
+
+# 通用用户程序构建规则（类似 xv6 的 _% 规则）
+# 从 user/xxx.c 生成 user/_xxx
+$(U)/_%: $(U)/%.o $(ULIB) $(U)/user.ld
+	$(LD) $(USER_LDFLAGS) -o $@ $< $(ULIB)
+	$(OBJDUMP) -S $@ > $(U)/$*.asm
+	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(U)/$*.sym
+
+# 编译用户程序 C 文件
+$(U)/%.o: $(U)/%.c $(USER_INCS)
+	$(USER_CC) $(USER_CFLAGS) -c $< -o $@
+
+
+
 
 # 默认目标
-all: $(USER_HDR)  kernel.elf
+all: $(USER_HDR) kernel.elf fs.img
 
-# 编译汇编文件
-kernel/boot/entry.o: kernel/boot/entry.S
+# 编译汇编文件（统一规则）
+kernel/%.o: kernel/%.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-kernel/trampoline.o: kernel/trampoline.S
+kernel/boot/%.o: kernel/boot/%.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-kernel/trap/kernelvec.o: kernel/trap/kernelvec.S
+kernel/trap/%.o: kernel/trap/%.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-kernel/proc/swtch.o: kernel/proc/swtch.S
+kernel/proc/%.o: kernel/proc/%.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# 编译C文件
+# 编译内核C文件
 kernel/%.o: kernel/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -127,19 +148,22 @@ debug-all: kernel.elf
 	@(qemu-system-riscv64 -machine virt -bios none -kernel $< -m 128M -smp 1 -nographic -s -S &) && sleep 2 && gdb-multiarch -ex "target remote :1234" -ex "symbol-file kernel.elf" kernel.elf
 
 
-clean-all:
-	rm -f kernel/*/*.o kernel/*/*.d kernel/*.o kernel/*.d kernel.elf kernel.asm kernel.sym \
-		user/*.o user/*.elf $(USER_HDR) 
-
-clean:
+clean: 
 	rm -f kernel/*/*.o kernel/*/*.d kernel/*.o kernel/*.d 
-
+	rm -f kernel.elf kernel.asm kernel.sym
+	rm -f $(U)/*.o $(U)/*.elf $(U)/_* $(U)/*.asm $(U)/*.sym $(U)/utils/*.o $(USER_HDR)
+	rm -f fs.img
 
 # 在QEMU中运行（需要安装qemu-system-riscv64）
 run: kernel.elf
 	qemu-system-riscv64 -machine virt -bios none -kernel $< -m 128M -smp 1 -nographic
 
-qemu: run clean
+run-fs: kernel.elf fs.img
+	qemu-system-riscv64 -machine virt -bios none -kernel $< -m 128M -smp 1 -nographic \
+		-drive file=fs.img,if=none,format=raw,id=disk0 \
+		-device virtio-blk-device,drive=disk0
+
+run-clean: run clean
 
 # 完整构建和验证
 test: clean all check-layout kernel.asm kernel.sym 
@@ -148,29 +172,37 @@ test: clean all check-layout kernel.asm kernel.sym
 	@echo "运行: make run"
 	@echo "调试: make debug (然后在另一终端运行 gdb-multiarch kernel.elf)"
 
-.PHONY: all clean run debug debug-all gdb test check-layout user-programs fsimg
+# 编译用户程序公共库
+$(U)/utils/%.o: $(U)/utils/%.c $(USER_INCS)
+	$(USER_CC) $(USER_CFLAGS) -c $< -o $@
 
-# 包含依赖文件
--include kernel/*/*.d 
-
-
-# 为每个用户程序构建ELF文件
-# init程序需要链接shell等库
-user/init.elf: user/init.c $(USER_COMMON_OBJS) $(USER_INCS)
-	$(USER_CC) $(USER_CFLAGS) -c user/init.c -o user/init.o
-	$(LD) $(USER_LDFLAGS) -o $@ user/init.o $(USER_COMMON_OBJS)
-
-
-
-
-$(USER_HDR): $(USER_ELF)
-	@echo "// generated from user/init.elf" > $(USER_HDR)
+# 生成initcode.h头文件（从 _init 生成）
+# 注意：如果需要 init.elf，可以通过复制 _init 来创建
+$(USER_HDR): $(U)/_init
+	@echo "// generated from user/_init" > $(USER_HDR)
 	@echo "#ifndef INITCODE_H" >> $(USER_HDR)
 	@echo "#define INITCODE_H" >> $(USER_HDR)
 	@echo "static const unsigned char initcode[] = {" >> $(USER_HDR)
-	@hexdump -v -e '1/1 " 0x%02x,"' $(USER_ELF) | sed 's/$$/ /' >> $(USER_HDR)
+	@hexdump -v -e '1/1 " 0x%02x,"' $(U)/_init | sed 's/$$/ /' >> $(USER_HDR)
 	@echo "" >> $(USER_HDR)
 	@echo "};" >> $(USER_HDR)
 	@echo "static const unsigned int initcode_size = sizeof(initcode);" >> $(USER_HDR)
 	@echo "#endif" >> $(USER_HDR)
+
+# 包含依赖文件
+-include kernel/*/*.d
+
+.PHONY: all clean clean-all run debug debug-all gdb test check-layout
+
+# 编译 mkfs 工具（类似 xv6，包含必要的头文件）
+tools/mkfs: tools/mkfs.c $(K)/fs/fs.h $(K)/include/param.h
+	gcc -I. -Wall -o $@ $<
+
+# 创建文件系统镜像（包含所有用户程序）
+# 注意：如果不需要 README，可以去掉 README 依赖
+fs.img: tools/mkfs $(UPROGS)
+	tools/mkfs fs.img $(UPROGS)
+
+# 防止删除中间文件（如 .o 文件），以便在首次构建后保持磁盘镜像的持久性
+.PRECIOUS: %.o $(U)/%.o
 

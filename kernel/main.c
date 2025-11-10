@@ -13,13 +13,13 @@ void test_physical_memory(void);
 void test_pagetable(void);
 
 
-
 void system_shutdown(void);
 void delay_seconds(int seconds);
 
 void main(void) {
   printf("My RISC-V OS Starting...\r\n");
 
+  //初始化
   kinit();
   kvminit();
   kvminithart();
@@ -55,6 +55,9 @@ void main(void) {
   printf("Entering scheduler...\r\n");
   // 进入调度器循环，永不返回
   scheduler();
+  // while (1) {
+  
+  // }
   panic("never reach here");
 
 }

@@ -13,7 +13,6 @@ __attribute__ ((aligned (16))) char stack0[4096];
 void
 start()
 {
-  printf("start\n");
   // set M Previous Privilege mode to Supervisor, for mret.
   unsigned long x = r_mstatus();
   x &= ~MSTATUS_MPP_MASK;
