@@ -159,8 +159,9 @@ free_pagetable(pagetable_t pagetable)
     if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
       // this PTE points to a lower-level page table.
       uint64 child = PTE2PA(pte);
-      free_pagetable((pagetable_t)child);
+      // 先清除 PTE，再递归释放子页表，避免在释放过程中访问已释放的页表
       pagetable[i] = 0;
+      free_pagetable((pagetable_t)child);
     } else if(pte & PTE_V){
       panic("free_pagetable: leaf");
     }
@@ -185,6 +186,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     if(do_free){
       uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
+      printf("uvmunmap: free page %x\n", pa);
     }
     *pte = 0;
   }
@@ -232,7 +234,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
 // 分配用户内存（增长进程内存）
 uint64
-uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
+uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 {
   char *mem;
   uint64 a;
@@ -248,13 +250,11 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
       return 0;
     }
     memset(mem, 0, PGSIZE);
-
-    if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+    if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
       kfree(mem);
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
-
   }
   return newsz;
 }

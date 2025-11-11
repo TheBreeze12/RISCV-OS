@@ -66,6 +66,13 @@ static void vprintf_internal(const char *fmt, va_list ap) {
       cons_puts(tmp);
       break;
     }
+    case 'p': { // 指针（地址）
+      void *ptr = va_arg(ap, void *);
+      cons_puts("0x");
+      itoa((long long)(uint64)ptr, tmp, 16, 0);
+      cons_puts(tmp);
+      break;
+    }
     case 'X': { // 十六进制整数（大写）
       int value = va_arg(ap, int);
       itoa(value, tmp, 16, 0);

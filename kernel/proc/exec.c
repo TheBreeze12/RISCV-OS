@@ -1,41 +1,53 @@
 #include "proc.h"
 #include "../include/elf.h"
 #include "../fs/file.h"
+#include "../fs/fs.h"
 
-static int loadseg(pagetable_t pagetable, uint64 va, struct file *f, uint offset, uint filesz);
+static int loadseg(pagetable_t pagetable, uint64 va, struct inode *f, uint offset, uint filesz);
 
+int flags2perm(int flags)
+{
+    int perm = 0;
+    if(flags & 0x1)
+      perm = PTE_X;
+    if(flags & 0x2)
+      perm |= PTE_W;
+    return perm;
+}
 int
 exec(char *path, char **argv)
 {
   char *s, *last;
   int i, off;
-  uint64 argc,sz=0, sp, ustack[MAXARG], stackbase;
+  uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
   struct elfhdr elf;
+  struct inode *ip;
   struct proghdr ph;
   pagetable_t pagetable = 0, oldpagetable;
-  struct file *f;
   struct proc *p = myproc();
 
-  // 打开文件
-  if((f = namei(path)) == 0){
+  begin_op();
+
+  // Open the executable file.
+  if((ip = namei(path)) == 0){
+    end_op();
     return -1;
   }
+  ilock(ip);
 
-  // 读取 ELF 头
-  if(fileread(f, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+  // Read the ELF header.
+  if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;
+
+  // Is this really an ELF file?
   if(elf.magic != ELF_MAGIC)
     goto bad;
-
-  // 创建新页表
   if((pagetable = proc_pagetable(p)) == 0)
     goto bad;
 
-
-  // 加载程序段
-
-  for(i = 0, off = elf.phoff; i < elf.phnum; i++, off += sizeof(ph)){
-    if(fileread(f, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+  // Load program into memory.
+  for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
+    if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
     if(ph.type != PT_LOAD)
       continue;
@@ -43,29 +55,33 @@ exec(char *path, char **argv)
       goto bad;
     if(ph.vaddr + ph.memsz < ph.vaddr)
       goto bad;
-    uint64 sz1;
-    if((sz1 = uvmalloc(pagetable, ph.vaddr, ph.vaddr + ph.memsz)) == 0)
+    if(ph.vaddr % PGSIZE != 0)
       goto bad;
-    if(sz1 < ph.vaddr + ph.memsz)
-      sz1 = ph.vaddr + ph.memsz;
-    sz=sz1;
-    if(loadseg(pagetable, ph.vaddr, f, ph.off, ph.filesz) < 0)
+    uint64 sz1;
+    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
+      goto bad;
+    sz = sz1;
+    if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
   }
+  iunlockput(ip);
+  end_op();
+  ip = 0;
+
+  p = myproc();
   uint64 oldsz = p->sz;
 
-
-  // 分配用户栈
+  // Allocate some pages at the next page boundary.
+  // Make the first inaccessible as a stack guard.
+  // Use the rest as the user stack.
   sz = PGROUNDUP(sz);
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + (USERSTACK+1)*PGSIZE)) == 0)
+  if((sz1 = uvmalloc(pagetable, sz, sz + (USERSTACK+1)*PGSIZE, PTE_W)) == 0)
     goto bad;
   sz = sz1;
   uvmclear(pagetable, sz-(USERSTACK+1)*PGSIZE);
   sp = sz;
   stackbase = sp - USERSTACK*PGSIZE;
-
-
 
   // Copy argument strings into new stack, remember their
   // addresses in ustack[].
@@ -101,75 +117,30 @@ exec(char *path, char **argv)
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
     
+  // 在切换页表之前设置 trapframe，避免访问已释放的页表
+  // 注意：trapframe 是内核地址，但为了安全，在切换前设置
+  p->trapframe->epc = elf.entry;
+  p->trapframe->sp = sp;
+  
   // Commit to the user image.
   oldpagetable = p->pagetable;
-  p->pagetable = pagetable;
+  p->pagetable = pagetable;  // 切换页表
   p->sz = sz;
-  p->trapframe->epc = elf.entry;  // initial program counter = main
-  p->trapframe->sp = sp; // initial stack pointer
-  proc_freepagetable(oldpagetable, oldsz);
-
+  proc_freepagetable(oldpagetable, oldsz);  // 释放旧页表
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
-bad:
+ bad:
   if(pagetable)
-    proc_freepagetable(pagetable, 0);
-  if(f)
-    fileclose(f);
+    proc_freepagetable(pagetable, sz);
+  if(ip){
+    iunlockput(ip);
+    end_op();
+  }
   return -1;
 }
-//   // 准备参数
-//   argc = 0;
-//   if(argv != 0) {
-//     for(argc = 0; argc < MAXARG && argv[argc]; argc++)
-//       ;
-//   }
-//   ustack[argc] = 0;  // 结束标记
-  
-//   // 提取程序名
-//   for(last=s=path; *s; s++)
-//     if(*s == '/')
-//       last = s+1;
-//   safestrcpy(p->name, last, sizeof(p->name));
 
-//   // 设置栈指针和参数
-//   sp = stackbase;
-//   sp -= sp % 16;  // riscv sp must be 16-byte aligned
-//   printf("hello\n");
-  
-//   // 将参数字符串复制到栈上
-//   for(i = argc-1; i >= 0; i--){
-//     sp -= strlen(argv[i]) + 1;
-//     sp -= sp % 16;
-//     if(copyout(pagetable, sp, argv[i], strlen(argv[i]) + 1) < 0)
-//       goto bad;
-//     ustack[i] = sp;
-//   }
-//   printf("hello\n");
-
-//   // 复制参数指针到栈
-//   sp -= (argc+1) * sizeof(uint64);
-//   sp -= sp % 16;
-//   if(copyout(pagetable, sp, (char *)ustack, (argc+1)*sizeof(uint64)) < 0)
-//     goto bad;
-
-//   // 保存旧页表和大小
-//   oldpagetable = p->pagetable;
-//   p->pagetable = pagetable;
-//   p->sz = sz1;
-
-//   // 设置 trapframe
-//   memset(p->trapframe, 0, sizeof(*p->trapframe));
-//   p->trapframe->epc = elf.entry;
-//   p->trapframe->sp = sp;
-
-//   // 释放旧页表
-//   proc_freepagetable(oldpagetable, oldsz);
-//   fileclose(f);
-//   return 0;
-// 加载一个程序段到内存
 static int
-loadseg(pagetable_t pagetable, uint64 va, struct file *f, uint offset, uint filesz)
+loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint filesz)
 {
   uint i;
   uint64 pa;
@@ -181,7 +152,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct file *f, uint offset, uint file
     uint64 sz = filesz - i;
     if(sz > PGSIZE)
       sz = PGSIZE;
-    if(fileread(f, pa, offset + i, sz) != sz)
+    if(readi(ip, 0, pa, offset + i, sz) != sz)
       return -1;
     if(va + i + sz < va + i)
       return -1;

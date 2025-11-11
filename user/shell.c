@@ -1,6 +1,6 @@
-// 简单的Shell程序实现
-#include "syscall.h"
-#include "printf.h"
+// 完整的Shell程序 - 支持内置命令和执行外部程序
+#include "./utils/syscall.h"
+#include "./utils/printf.h"
 
 #define MAXLINE 256    // 最大命令行长度
 #define MAXARGS 32     // 最大参数数量
@@ -10,6 +10,18 @@ static int strcmp(const char *p, const char *q) {
     while (*p && *p == *q)
         p++, q++;
     return (unsigned char)*p - (unsigned char)*q;
+}
+
+static int strlen(const char *s) {
+    int n = 0;
+    while (*s++)
+        n++;
+    return n;
+}
+
+static void strcpy(char *dst, const char *src) {
+    while ((*dst++ = *src++) != 0)
+        ;
 }
 
 static int isspace(int c) {
@@ -62,31 +74,57 @@ static int read_line(char *buf, int maxlen) {
     if (n < 0) {
         return -1;
     }
-    buf[n] = '\0';
+    if (n == 0) {
+        return 0;
+    }
+    // 确保以换行符或\0结尾
+    if (buf[n-1] == '\n')
+        buf[n-1] = '\0';
+    else
+        buf[n] = '\0';
     return n;
 }
+
+// 字符串转整数
+static int atoi(const char *s) {
+    int n = 0;
+    while (*s >= '0' && *s <= '9') {
+        n = n * 10 + (*s - '0');
+        s++;
+    }
+    return n;
+}
+
+// ============================================================================
+// 内置命令实现
+// ============================================================================
 
 // 内置命令：退出
 static int cmd_exit(int argc, char **argv) {
     if (argc > 1) {
         printf("用法: exit\n");
-        return 0;
+        return 1;
     }
     printf("再见！\n");
     sys_exit(0);
-    return 0;  // 不会到达这里
+    return 0;
 }
 
 // 内置命令：帮助
 static int cmd_help(int argc, char **argv) {
-    printf("可用的内置命令:\n");
-    printf("  exit    - 退出shell\n");
-    printf("  help    - 显示此帮助信息\n");
-    printf("  echo    - 回显参数\n");
-    printf("  pid     - 显示当前进程ID\n");
-    printf("  fork    - 测试fork功能\n");
-    printf("  sleep   - 睡眠指定秒数\n");
-    printf("  clear   - 清除屏幕\n");
+    printf("=== RISC-V OS Shell 帮助 ===\n");
+    printf("内置命令:\n");
+    printf("  exit        - 退出shell\n");
+    printf("  help        - 显示此帮助信息\n");
+    printf("  echo <...>  - 回显参数\n");
+    printf("  pid         - 显示当前进程ID\n");
+    printf("  fork        - 测试fork功能\n");
+    printf("  sleep <n>   - 睡眠n秒\n");
+    printf("  clear       - 清除屏幕\n");
+    printf("  ls          - 列出文件（占位符）\n");
+    printf("\n");
+    printf("外部程序:\n");
+    printf("  可以执行文件系统中的程序，例如: /hello\n");
     return 0;
 }
 
@@ -117,12 +155,15 @@ static int cmd_fork(int argc, char **argv) {
         printf("这是子进程 (pid=%d)\n", sys_getpid());
         sys_sleep(1);
         printf("子进程退出\n");
-        sys_exit(0);
-    } else{
+        // sys_exit(0);
+    } else if (pid > 0) {
         printf("这是父进程 (pid=%d), 子进程pid=%d\n", sys_getpid(), pid);
-        int status = sys_wait();
-        printf("父进程等待子进程结束，返回值: %d\n", status);
-    } 
+        // int status = sys_wait();
+        // printf("父进程等待子进程结束，返回值: %d\n", status);
+    } else {
+        printf("fork失败\n");
+        return 1;
+    }
     return 0;
 }
 
@@ -133,16 +174,9 @@ static int cmd_sleep(int argc, char **argv) {
         return 1;
     }
     
-    // 简单的字符串转整数
-    int seconds = 0;
-    char *p = argv[1];
-    while (*p >= '0' && *p <= '9') {
-        seconds = seconds * 10 + (*p - '0');
-        p++;
-    }
-    
-    if (*p != '\0') {
-        printf("错误: 无效的数字: %s\n", argv[1]);
+    int seconds = atoi(argv[1]);
+    if (seconds <= 0) {
+        printf("错误: 无效的秒数: %s\n", argv[1]);
         return 1;
     }
     
@@ -152,9 +186,17 @@ static int cmd_sleep(int argc, char **argv) {
     return 0;
 }
 
+// 内置命令：清除屏幕
 static int cmd_clear(int argc, char **argv) {
     printf("\033[2J"); // 清除整个屏幕
-    printf("\033[H");  // 光标回到左上角 (1,1)
+    printf("\033[H");  // 光标回到左上角
+    return 0;
+}
+
+// 内置命令：列出文件（占位符）
+static int cmd_ls(int argc, char **argv) {
+    printf("文件列表功能尚未实现\n");
+    printf("当前支持的程序: /hello, /init\n");
     return 0;
 }
 
@@ -177,18 +219,47 @@ static int execute_builtin(int argc, char **argv) {
         return cmd_sleep(argc, argv);
     } else if (strcmp(argv[0], "clear") == 0) {
         return cmd_clear(argc, argv);
+    } else if (strcmp(argv[0], "ls") == 0) {
+        return cmd_ls(argc, argv);
     }
     
     return -1;  // 不是内置命令
 }
-
-// 执行外部程序（通过exec）
+// 执行外部程序（通过fork+exec）
 static int execute_external(int argc, char **argv) {
-    // TODO: 当exec系统调用完全实现后，这里可以执行外部程序
-    // 目前先返回错误
-    printf("错误: 外部程序执行尚未实现\n");
-    printf("提示: 当前只支持内置命令，使用 'help' 查看可用命令\n");
-    return 1;
+    char *path = argv[0];
+    
+    // 如果路径不是以/开头，添加/
+    char fullpath[64];
+    if (path[0] != '/') {
+        fullpath[0] = '/';
+        strcpy(fullpath + 1, path);
+        path = fullpath;
+    }
+    
+    // Fork一个子进程
+    int pid = sys_fork();
+    if (pid < 0) {
+        printf("错误: fork失败\n");
+        return 1;
+    }
+    
+    if (pid == 0) {
+        // 子进程：执行程序
+        int ret = sys_exec(path, argv);
+        if (ret < 0) {
+            printf("错误: 无法执行 '%s'\n", argv[0]);
+            printf("提示: 确保程序存在于文件系统中\n");
+            sys_exit(1);
+        }
+        // exec成功不会返回
+    } else {
+        // 父进程：等待子进程完成
+        int status = sys_wait();
+        return status;
+    }
+    
+    return 0;
 }
 
 // 执行命令
@@ -207,27 +278,33 @@ static int execute(int argc, char **argv) {
 }
 
 // Shell主循环
-void shell_main(void) {
+int main(void) {
     char buf[MAXLINE];
     char *argv[MAXARGS];
     
+    printf("\n");
     printf("=== RISC-V OS Shell ===\n");
     printf("输入 'help' 查看可用命令\n");
-    printf("输入 'exit' 退出\n\n");
+    printf("输入 'exit' 退出\n");
+    printf("\n");
     
     while (1) {
         // 显示提示符
         printf("$ ");
         
         // 读取命令行
-        if (read_line(buf, MAXLINE) < 0) {
+        int n = read_line(buf, MAXLINE);
+        if (n < 0) {
             printf("\n读取输入失败，退出\n");
             break;
+        }
+        if (n == 0) {
+            continue;  // 空输入，继续
         }
         
         // 跳过空行
         char *p = skip_whitespace(buf);
-        if (*p == '\0' || *p == '\n') {
+        if (*p == '\0') {
             continue;
         }
         
@@ -240,5 +317,7 @@ void shell_main(void) {
         // 执行命令
         execute(argc, argv);
     }
+    
+    return 0;
 }
 

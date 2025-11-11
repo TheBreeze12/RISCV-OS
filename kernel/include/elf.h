@@ -1,4 +1,6 @@
 // ELF 文件格式定义
+#ifndef ELF_H
+#define ELF_H
 #include "def.h"
 #define ELF_MAGIC 0x464C457FU  // "\x7FELF" in little endian
 
@@ -34,3 +36,4 @@ struct proghdr {
 };
 
 #define PT_LOAD 1
+#endif

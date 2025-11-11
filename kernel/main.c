@@ -23,9 +23,17 @@ void main(void) {
   kinit();
   kvminit();
   kvminithart();
-  trapinithart();
   procinit();
-
+  trapinithart();
+  plicinit();      // PLIC interrupt controller
+  plicinithart();  // enable interrupts for this hart
+ 
+  binit();         // buffer cache
+  iinit();         // inode table
+  fileinit();      // file table
+  virtio_disk_init(); // emulated hard disk
+  userinit();      // first user process
+  __sync_synchronize();
   //测试函数
   // test_printf_basic();
   // test_printf_edge_cases();
@@ -50,7 +58,6 @@ void main(void) {
   printf("System initialization complete!\r\n");
   
   // 创建第一个用户进程
-  userinit();
   
   printf("Entering scheduler...\r\n");
   // 进入调度器循环，永不返回

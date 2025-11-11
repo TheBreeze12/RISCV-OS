@@ -101,6 +101,9 @@ found:
     freeproc(p);
     return 0;
   }
+  
+  // 初始化trapframe为0，避免未初始化的值
+  memset(p->trapframe, 0, sizeof(struct trapframe));
 
   // 创建空的用户页表
   p->pagetable = proc_pagetable(p);
@@ -197,9 +200,21 @@ return 0;
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
-  uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-  uvmunmap(pagetable, TRAPFRAME, 1, 0);
-  uvmfree(pagetable, sz);
+  // 先清除 TRAMPOLINE 和 TRAPFRAME 的映射（不释放物理页）
+  // 必须在释放用户内存之前清除，因为 walk 需要访问页表
+  pte_t *pte;
+  if((pte = walk(pagetable, TRAMPOLINE, 0)) != 0 && (*pte & PTE_V))
+    *pte = 0;
+  
+  if((pte = walk(pagetable, TRAPFRAME, 0)) != 0 && (*pte & PTE_V))
+    *pte = 0;
+  
+  // 然后释放用户内存（这会清除所有用户页的映射并释放物理页）
+  if(sz > 0)
+    uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
+  
+  // 现在可以安全地释放页表结构了
+  free_pagetable(pagetable);
 }
 
 // ============================================================================
@@ -215,6 +230,7 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
     p->state = UNUSED;
     p->kstack = 0;
+    // 初始化进程锁
   }
 }
 
@@ -255,31 +271,31 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
+
   c->proc = 0;
-  
   for(;;){
-    // 开启中断，允许设备中断
-    // 这很关键：避免调度器独占CPU，让设备可以工作
-    intr_on();
-
-    // 遍历进程表，查找RUNNABLE进程
+    // The most recent process to run may have had interrupts
+    // turned off; enable them to avoid a deadlock if all
+    // processes are waiting. Then turn them back off
+    // to avoid a possible race between an interrupt
+    // and wfi.
+    // intr_on();
+    // printf("scheduler start\n");
     for(p = proc; p < &proc[NPROC]; p++) {
-      
-      if(p->state != RUNNABLE)
-        continue;
+     
+      if(p->state == RUNNABLE) {
+        // printf("scheduler: process %d is runnable\n", p->pid);
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
 
-      // 找到可运行进程，切换到该进程
-      p->state = RUNNING;
-      c->proc = p;
-      
-      // 上下文切换：从调度器切换到进程
-      // 关键：swtch保存当前上下文到c->context
-      //       恢复p->context中的上下文
-      swtch(&c->context, &p->context);
-
-      // 当进程再次调度回调度器时，会从这里继续执行
-      c->proc = 0;
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
     }
   }
 }
@@ -314,10 +330,9 @@ yield(void)
 void
 sched(void)
 {
-  intr_off();
+  intr_on();
   struct proc *p = myproc();
   struct cpu *c = mycpu();
-
   if(p == 0)
     panic("sched: no proc");
 
@@ -327,12 +342,11 @@ sched(void)
     printf("sched: process running %s\n", p->name);
     panic("sched: process running");
   }
-  if(intr_get())
-    panic("sched: interruptible");
+
+  // printf("sched: proc %d\n", p->pid);
 
   // 切换回调度器上下文
   swtch(&p->context, &c->context);
-  intr_on();
 }
 
 // ============================================================================
@@ -496,6 +510,9 @@ fork(void)
 
   // fork返回0给子进程
   np->trapframe->a0 = 0;
+  
+  // 确保epc指向正确的地址（sys_fork的返回地址）
+  // 注意：epc应该已经在usertrap中正确设置了
 
   // 复制打开的文件描述符
   // TODO: copy open files
@@ -528,13 +545,24 @@ forkret(void)
     // regular process (e.g., because it calls sleep), and thus cannot
     // be run from main().
     printf("第一个进程初始化，准备切换到用户态...\n");
+    
+    // 确保中断已启用，以便磁盘 I/O 可以完成
+    if(!intr_get()) {
+      printf("forkret: enabling interrupts...\n");
+      intr_on();
+    }
+    
+    // ensure other cores see first=0.
+    printf("forkret: calling fsinit...\n");
+    fsinit(ROOTDEV);
+    printf("forkret: fsinit completed\n");
 
     first = 0;
     // ensure other cores see first=0.
-
+    __sync_synchronize();
     // We can invoke kexec() now that file system is initialized.
     // Put the return value (argc) of kexec into a0.
-    p->trapframe->a0 = exec("/init", (char *[]){ "/init", 0 });
+    p->trapframe->a0 = exec("/shell", (char *[]){ "/shell", 0 });
     if (p->trapframe->a0 == -1) {
       panic("exec");
     }
@@ -557,7 +585,7 @@ growproc(int n)
 
   sz = p->sz;
   if(n > 0){
-    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    if((sz = uvmalloc(p->pagetable, sz, sz + n,PTE_W)) == 0) {
       return -1;
     }
   } else if(n < 0){
@@ -660,6 +688,7 @@ wakeup_timer(void)
   
   // 遍历所有进程，唤醒到期的进程
   for(p = proc; p < &proc[NPROC]; p++){
+  
     if(p->state == SLEEPING && p->wake_time != 0) {
       if(now >= p->wake_time) {
         // 时间到了，唤醒进程
@@ -667,5 +696,71 @@ wakeup_timer(void)
         p->wake_time = 0;
       }
     }
+  }
+}
+
+void
+sleep_lock(void *chan, struct spinlock *lk)
+{
+  struct proc *p = myproc();
+  
+  if(p == 0)
+    panic("sleep_lock: no proc");
+  
+  // Go to sleep.
+  p->chan = chan;
+  p->state = SLEEPING;
+  
+  // Release the lock before sleeping, so interrupt handler can acquire it
+  release(lk);
+  
+  sched();
+  
+  // Tidy up.
+  p->chan = 0;
+
+  // Reacquire original lock after waking up
+  acquire(lk);
+}
+
+// Wake up all processes sleeping on channel chan.
+// Caller should hold the condition lock.
+void
+wakeup_lock(void *chan)
+{
+  struct proc *p;
+
+  // Check all processes, including the current one (if any)
+  // In interrupt context, myproc() may return the sleeping process
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->state == SLEEPING && p->chan == chan) {
+      p->state = RUNNABLE;
+    }
+  }
+}
+int
+either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
+{
+  struct proc *p = myproc();
+  if(user_dst){
+    return copyout(p->pagetable, dst, src, len);
+  } else {
+    memmove((char *)dst, src, len);
+    return 0;
+  }
+}
+
+// Copy from either a user address, or kernel address,
+// depending on usr_src.
+// Returns 0 on success, -1 on error.
+int
+either_copyin(void *dst, int user_src, uint64 src, uint64 len)
+{
+  struct proc *p = myproc();
+  if(user_src){
+    return copyin(p->pagetable, dst, src, len);
+  } else {
+    memmove(dst, (char*)src, len);
+    return 0;
   }
 }

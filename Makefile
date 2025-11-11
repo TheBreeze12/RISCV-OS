@@ -32,16 +32,23 @@ kernel/utils/uart.o \
 kernel/utils/console.o \
 kernel/mm/kalloc.o \
 kernel/utils/string.o \
+kernel/utils/spinlock.o \
+kernel/utils/sleeplock.o \
 kernel/mm/vm.o \
 kernel/trap/trap.o \
 kernel/trap/kernelvec.o \
 kernel/trap/syscall.o \
+kernel/trap/plic.o \
 kernel/proc/proc.o \
 kernel/proc/swtch.o \
 kernel/proc/proc_test.o \
 kernel/fs/file.o \
-kernel/fs/namei.o \
-kernel/proc/exec.o
+kernel/proc/exec.o \
+kernel/fs/bio.o \
+kernel/fs/virtio_disk.o \
+kernel/fs/fs.o \
+kernel/fs/log.o 
+
 
 
 # 用户程序构建配置
@@ -68,9 +75,10 @@ USER_HDR = $(U)/initcode.h
 UPROGS = \
 	$(U)/_init \
 	$(U)/_hello \
+	$(U)/_shell \
 
 # 通用用户程序构建规则（类似 xv6 的 _% 规则）
-# 从 user/xxx.c 生成 user/_xxx
+# 从 user/xxx.c 生成 user/_xxxwakeup(
 $(U)/_%: $(U)/%.o $(ULIB) $(U)/user.ld
 	$(LD) $(USER_LDFLAGS) -o $@ $< $(ULIB)
 	$(OBJDUMP) -S $@ > $(U)/$*.asm
@@ -153,6 +161,24 @@ clean:
 	rm -f kernel.elf kernel.asm kernel.sym
 	rm -f $(U)/*.o $(U)/*.elf $(U)/_* $(U)/*.asm $(U)/*.sym $(U)/utils/*.o $(USER_HDR)
 	rm -f fs.img
+QEMU = qemu-system-riscv64
+MIN_QEMU_VERSION = 7.2
+QEMU_VERSION := $(shell $(QEMU) --version | head -n 1 | sed -E 's/^QEMU emulator version ([0-9]+\.[0-9]+)\..*/\1/')
+check-qemu-version:
+	@if [ "$(shell echo "$(QEMU_VERSION) >= $(MIN_QEMU_VERSION)" | bc)" -eq 0 ]; then \
+		echo "ERROR: Need qemu version >= $(MIN_QEMU_VERSION)"; \
+		exit 1; \
+	fi
+
+
+QEMUOPTS = -machine virt -bios none -kernel kernel.elf -m 128M -smp 1 -nographic
+QEMUOPTS += -global virtio-mmio.force-legacy=false
+QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
+QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+qemu: check-qemu-version kernel.elf fs.img
+	$(QEMU) $(QEMUOPTS)
+
 
 # 在QEMU中运行（需要安装qemu-system-riscv64）
 run: kernel.elf
@@ -161,7 +187,7 @@ run: kernel.elf
 run-fs: kernel.elf fs.img
 	qemu-system-riscv64 -machine virt -bios none -kernel $< -m 128M -smp 1 -nographic \
 		-drive file=fs.img,if=none,format=raw,id=disk0 \
-		-device virtio-blk-device,drive=disk0
+		-device virtio-blk-device,drive=disk0,bus=virtio-mmio-bus.0
 
 run-clean: run clean
 
@@ -196,7 +222,7 @@ $(USER_HDR): $(U)/_init
 
 # 编译 mkfs 工具（类似 xv6，包含必要的头文件）
 tools/mkfs: tools/mkfs.c $(K)/fs/fs.h $(K)/include/param.h
-	gcc -I. -Wall -o $@ $<
+	gcc -DMKFS -I. -Wall -o $@ $<
 
 # 创建文件系统镜像（包含所有用户程序）
 # 注意：如果不需要 README，可以去掉 README 依赖

@@ -1,13 +1,13 @@
 #include "../include/type.h"
 #include "../include/param.h"
 #include "../include/def.h"
+#include "../utils/spinlock.h"
 
 // Forward declarations
 struct proc;
 struct cpu;
 struct context;
 struct file;
-struct inode;
 
 // Saved registers for kernel context switches.
 struct context {

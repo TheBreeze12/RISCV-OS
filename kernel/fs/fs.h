@@ -2,6 +2,14 @@
 // Both the kernel and user programs use this header file.
 
 #include "../include/type.h"
+#ifndef FS_H
+#define FS_H
+
+// Only include sleeplock.h when compiling kernel code
+#ifndef MKFS
+#include "../utils/sleeplock.h"
+#endif
+
 #define ROOTINO  1   // root i-number
 #define BSIZE 1024  // block size
 
@@ -60,3 +68,6 @@ struct dirent {
   char name[DIRSIZ] __attribute__((nonstring));
 };
 
+
+
+#endif

@@ -11,7 +11,13 @@ struct proc;
 struct cpu;
 struct context;
 struct k_trapframe;
-// struct spinlock;
+struct spinlock;
+struct sleeplock;
+struct buf;
+struct inode;
+struct superblock;
+struct file;
+struct stat;
 
 // 自定义assert宏
 #define assert(condition) \
@@ -57,6 +63,8 @@ int   strlen(const char *s);
 char* safestrcpy(char *s, const char *t, int n);
 int   sprintf(char *dst, const char *fmt, ...);
 void* memmove(void *dst, const void *src, uint n);
+int   strncmp(const char *p, const char *q, uint n);
+char* strncpy(char *s, const char *t, int n);
 
 
 // vm.c
@@ -73,7 +81,7 @@ int             ismapped(pagetable_t, uint64);
 void            uvmunmap(pagetable_t, uint64, uint64, int);
 void            uvmfree(pagetable_t, uint64);
 int             uvmcopy(pagetable_t, pagetable_t, uint64);
-uint64          uvmalloc(pagetable_t, uint64, uint64);
+uint64         uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm);
 uint64          uvmdealloc(pagetable_t, uint64, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
@@ -89,6 +97,11 @@ void usertrap(void);
 void usertrapret(void);
 void kerneltrap(struct k_trapframe *tf);
 void sbi_set_timer(uint64 time);
+// plic.c
+void plicinit(void);
+void plicinithart(void);
+int plic_claim(void);
+void plic_complete(int);
 
 // 全局变量外部声明
 extern volatile int global_interrupt_count;
@@ -202,7 +215,9 @@ void            scheduler(void) __attribute__((noreturn));
 void            yield(void);
 void            sched(void);
 void            sleep(void *chan);
+void            sleep_lock(void *chan, struct spinlock *lk);
 void            wakeup(void *chan);
+void            wakeup_lock(void *chan);
 void            exit(int status);
 int             wait(uint64 addr);
 int             fork(void);
@@ -213,6 +228,8 @@ int             killed(struct proc *p);
 void            setkilled(struct proc *p);
 void            wakeup_timer(void);
 void            sleep_ticks(uint64 ticks);
+int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
+int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 // proc_test.c
 void            run_all_proc_tests(void);
 void            test_process_creation(void);
@@ -232,9 +249,63 @@ int exec(char *path, char **argv);
 struct file* filealloc(void);
 void fileclose(struct file*);
 struct file* filedup(struct file*);
-int fileread(struct file*, uint64 addr, uint offset, int n);
+int fileread(struct file *f, uint64 addr, int n);
+void fileinit(void);
 
 // namei.c
-struct file* namei(char *path);
+
+
+// sleeplock.c
+void initsleeplock(struct sleeplock *lk, char *name);
+void acquiresleep(struct sleeplock *lk);
+void releasesleep(struct sleeplock *lk);
+int holdingsleep(struct sleeplock *lk);
+
+// spinlock.c
+void initlock(struct spinlock *lk, char *name);
+void acquire(struct spinlock *lk);
+void release(struct spinlock *lk);
+int holding(struct spinlock *lk);
+void push_off(void);
+void pop_off(void);
+
+// virtio_disk.c
+void            virtio_disk_init(void);
+void            virtio_disk_rw(struct buf *, int);
+void            virtio_disk_intr(void);
+
+// bio.c
+void binit(void);
+void bwrite(struct buf *b);
+void brelse(struct buf *b);
+void bpin(struct buf *b);
+void bunpin(struct buf *b);
+struct buf* bread(uint dev, uint blockno);
+// fs.c
+void fsinit(int dev);
+void iinit(void);
+// Note: iget is static in fs.c, so not declared here
+struct inode* ialloc(uint dev, short type);
+void ilock(struct inode *ip);
+void iunlock(struct inode *ip);
+void iupdate(struct inode *ip);
+void iput(struct inode *ip);
+void iunlockput(struct inode *ip);
+void itrunc(struct inode *ip);
+struct inode* idup(struct inode *ip);
+int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n);
+int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n);
+void iclaim(int dev);
+void ireclaim(int dev);
+void stati(struct inode *ip, struct stat *st);
+struct inode* namei(char *path);
+
+// log.c
+void initlog(int dev, struct superblock *sb);
+void begin_op(void);
+void end_op(void);
+void log_write(struct buf *b);
+// Note: commit, write_log, write_head, read_head, install_trans, and recover_from_log 
+// are static in log.c, so not declared here
 
 #endif // DEF_H

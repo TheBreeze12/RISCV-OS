@@ -40,17 +40,16 @@ void
 kfree(void *pa)
 {
   struct run *r;
-
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
-
   // Fill with junk to catch dangling refs.
-  memset(pa, 1, PGSIZE);
+  memset(pa, 2, PGSIZE);
 
   r = (struct run*)pa;
 
   r->next = kmem.freelist;
   kmem.freelist = r;
+  // printf("kfree end\n");
 }
 
 // Allocate one 4096-byte page of physical memory.

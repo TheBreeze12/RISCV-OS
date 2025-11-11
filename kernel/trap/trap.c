@@ -7,7 +7,7 @@ volatile int global_interrupt_count = 0;
 extern char trampoline[], uservec[], userret[];
 
 
-
+extern int devintr();
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -17,7 +17,9 @@ void
 trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
-  intr_on();
+  
+  // enable supervisor-mode external interrupts (for PLIC)
+  
 }
 
 
@@ -41,13 +43,14 @@ void timer_interrupt(void) {
     // 4. 递增全局中断计数器
     global_interrupt_count++;
     // 5. 设置下次中断时间
-    sbi_set_timer(1000000);
     // 6. 返回
 }
 
 void 
 kerneltrap(struct k_trapframe *tf)
 {
+  // printf("kerneltrap\n");
+  int which_dev = 0;
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
@@ -57,29 +60,59 @@ kerneltrap(struct k_trapframe *tf)
   if(intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
 
-  // 检查是中断还是异常
-  if (scause & CAUSE_INTERRUPT_FLAG) {
-    // 处理中断
-    uint64 interrupt_cause = scause & ~CAUSE_INTERRUPT_FLAG;
-    switch (interrupt_cause) {
-      case CAUSE_TIMER_INTERRUPT:
-        timer_interrupt();
-        break;
-      case CAUSE_SOFTWARE_INTERRUPT:
-        printf("Software interrupt received\n");
-        break;
-      case CAUSE_EXTERNAL_INTERRUPT:
-        printf("External interrupt received\n");
-        break;
-      default:
-        printf("Unknown interrupt: %d\n", interrupt_cause);
-        panic("Unknown interrupt");
-    }
-  } else {
-    tf->epc = sepc;
-    handle_exception(tf);
-    sepc = tf->epc;
+  // // 检查是中断还是异常
+  // if (scause & CAUSE_INTERRUPT_FLAG) {
+  //   // 处理中断
+  //   uint64 interrupt_cause = scause & ~CAUSE_INTERRUPT_FLAG;
+  //   switch (interrupt_cause) {
+  //     case CAUSE_TIMER_INTERRUPT:
+  //       timer_interrupt();
+  //       break;
+  //     case CAUSE_SOFTWARE_INTERRUPT:
+  //       printf("Software interrupt received\n");
+  //       break;
+  //     case CAUSE_EXTERNAL_INTERRUPT: {
+  //       // 外部中断来自 PLIC（Platform-Level Interrupt Controller）
+  //       // 需要检查是哪个设备的中断
+  //       printf("kerneltrap: external interrupt received, checking PLIC...\n");
+  //       int irq = plic_claim();
+  //       printf("kerneltrap: plic_claim returned irq=%d\n", irq);
+  //       if(irq == VIRTIO0_IRQ){
+  //         printf("kerneltrap: virtio disk interrupt received\n");
+  //         virtio_disk_intr();
+  //       } else if(irq == UART0_IRQ){
+  //         printf("kerneltrap: uart interrupt received (ignoring)\n");
+  //       } else if(irq){
+  //         printf("kerneltrap: unexpected interrupt irq=%d\n", irq);
+  //       } else {
+  //         // irq == 0 means no interrupt pending
+  //         // This can happen if interrupt was already handled
+  //         printf("kerneltrap: external interrupt but irq=0 (spurious?)\n");
+  //       }
+  //       if(irq)
+  //         plic_complete(irq);
+  //       break;
+  //     }
+  //     default:
+  //       printf("Unknown interrupt: %d\n", interrupt_cause);
+  //       panic("Unknown interrupt");
+  //   }
+  // } else {
+  //   tf->epc = sepc;
+  //   handle_exception(tf);
+  //   sepc = tf->epc;
+  // }
+
+
+  if((which_dev = devintr()) == 0){
+    // interrupt or trap from an unknown source
+    printf("scause=0x%x sepc=0x%x stval=0x%x\n", scause, r_sepc(), r_stval());
+    panic("kerneltrap");
   }
+
+  // give up the CPU if this is a timer interrupt.
+  if(which_dev == 2 )
+    timer_interrupt();
 
   w_sepc(sepc);
   w_sstatus(sstatus);
@@ -400,20 +433,9 @@ usertrap(void)
   
   if(scause & CAUSE_INTERRUPT_FLAG) {
     // 处理中断
-    uint64 interrupt_cause = scause & ~CAUSE_INTERRUPT_FLAG;
-    switch(interrupt_cause) {
-      case CAUSE_TIMER_INTERRUPT:
-        // 时钟中断，触发调度
-        if(cpuid() == 0) {
-          sbi_set_timer(1000000);
-        }
-        yield();
-        break;
-      default:
-        printf("usertrap: unexpected interrupt scause %x pid=%d\n", scause, p->pid);
-        printf("sepc=%x stval=%x\n", r_sepc(), r_stval());
-        setkilled(p);
-    }
+    int which_dev=devintr();
+    if(which_dev == 2)
+    yield();
   } else if(scause == CAUSE_USER_ECALL) {
     // 系统调用
     if(killed(p))
@@ -485,17 +507,74 @@ usertrapret(void)
   x &= ~SSTATUS_SPP;  // 清除SPP位，返回用户态
   x |= SSTATUS_SPIE;  // 启用用户态中断
   w_sstatus(x);
-
+  // printf("usertrapret: epc=%x\n", p->trapframe->epc);
   // 设置返回地址为用户程序的epc
   w_sepc(p->trapframe->epc);
 
   // 切换到用户页表
   uint64 satp = MAKE_SATP(p->pagetable);
+  printf("satp=%x\n", satp);
   // printf("[RET] satp=%x\n", satp);
   // 跳转到trampoline.S中的userret
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
   
   ((void (*)(uint64))trampoline_userret)(satp);
   
+}
+
+void
+clockintr()
+{
+  // if(cpuid() == 0){
+  //   acquire(&tickslock);
+  //   ticks++;
+  //   wakeup(&ticks);
+  //   release(&tickslock);
+  // }
+
+  // ask for the next timer interrupt. this also clears
+  // the interrupt request. 1000000 is about a tenth
+  // of a second.
+  w_stimecmp(r_time() + 1000000);
+}
+
+// check if it's an external interrupt or software interrupt,
+// and handle it.
+// returns 2 if timer interrupt,
+// 1 if other device,
+// 0 if not recognized.
+int
+devintr()
+{
+  uint64 scause = r_scause();
+
+  if(scause == 0x8000000000000009L){
+    // this is a supervisor external interrupt, via PLIC.
+
+    // irq indicates which device interrupted.
+    int irq = plic_claim();
+
+    if(irq == UART0_IRQ){
+      // uartintr();
+    } else if(irq == VIRTIO0_IRQ){
+      virtio_disk_intr();
+    } else if(irq){
+      printf("unexpected interrupt irq=%d\n", irq);
+    }
+
+    // the PLIC allows each device to raise at most one
+    // interrupt at a time; tell the PLIC the device is
+    // now allowed to interrupt again.
+    if(irq)
+      plic_complete(irq);
+
+    return 1;
+  } else if(scause == 0x8000000000000005L){
+    // timer interrupt.
+    clockintr();
+    return 2;
+  } else {
+    return 0;
+  }
 }
 
