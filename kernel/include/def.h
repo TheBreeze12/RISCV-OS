@@ -317,7 +317,10 @@ void initlog(int dev, struct superblock *sb);
 void begin_op(void);
 void end_op(void);
 void log_write(struct buf *b);
-// Note: commit, write_log, write_head, read_head, install_trans, and recover_from_log 
+void recover_from_log(void);
+void log_stats(void);
+int log_check(void);
+// Note: commit, write_log, write_head, read_head, install_trans 
 // are static in log.c, so not declared here
 
 #endif // DEF_H
