@@ -106,9 +106,28 @@ kerneltrap(struct k_trapframe *tf)
 
   if((which_dev = devintr()) == 0){
     // interrupt or trap from an unknown source
-  printf("[TRAP] kerneltrap: satp=%x\n",  r_satp());
-
+    struct proc *p = myproc();
+    printf("[TRAP] kerneltrap: satp=%x\n",  r_satp());
+    if(p) {
+      printf("Current process: pid=%d name=%s state=%d\n", p->pid, p->name, p->state);
+      printf("context.ra=0x%x context.sp=0x%x\n", p->context.ra, p->context.sp);
+      printf("kstack=0x%x trapframe=0x%x\n", p->kstack, p->trapframe);
+    } else {
+      printf("No current process!\n");
+    }
     printf("scause=0x%x sepc=0x%x stval=0x%x\n", scause, r_sepc(), r_stval());
+    printf("sp=0x%x ra=0x%x\n", r_sp(), r_ra());
+    
+    // 打印所有进程状态
+    extern struct proc proc[];
+    printf("\nAll processes:\n");
+    for(struct proc *pp = proc; pp < &proc[NPROC]; pp++) {
+      if(pp->state != UNUSED) {
+        printf("  slot=%d pid=%d name=%s state=%d\n", 
+               (int)(pp - proc), pp->pid, pp->name, pp->state);
+      }
+    }
+    
     panic("kerneltrap");
   }
 
@@ -212,6 +231,9 @@ static uint64 (*syscalls[])(void) = {
     [SYS_CLOSE]  = sys_close,
     [SYS_EXEC]   = sys_exec,
     [SYS_SBRK]   = sys_sbrk,
+    [SYS_FSTAT]  = sys_fstat,
+    [SYS_UNLINK] = sys_unlink,
+    [SYS_MKDIR]  = sys_mkdir,
 };
 
 

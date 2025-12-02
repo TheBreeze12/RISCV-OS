@@ -1,0 +1,57 @@
+qemu-system-riscv64 -machine virt -bios none -kernel kernel.elf -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+S
+B
+S
+My RISC-V OS Starting...
+[ALLOC] allocating slot=0
+System initialization complete!
+Entering scheduler...
+第一个进程初始化，准备切换到用户态...
+forkret: enabling interrupts...
+forkret: calling fsinit...
+forkret: fsinit completed
+[DEBUG] exec: oldsz=0, p->sz=0
+[DEBUG] exec: before free, oldsz=0, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+
+=== RISC-V OS Shell ===
+输入 'help' 查看可用命令
+输入 'exit' 退出
+
+$ t
+[FORK] parent pid=1 starting fork
+[ALLOC] allocating slot=1
+[FORK] allocated new proc, pid=2
+[FORK] fork complete, child pid=2
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=13000
+[DEBUG] exec: after proc_freepagetable
+[EXIT] pid=2 exiting with status=0
+[WAIT] pid=1 reaping zombie child pid=2
+[FREE] freeing slot=1 pid=2
+[WAIT] pid=1 freed child pid=2
+$ t
+[FORK] parent pid=1 starting fork
+[ALLOC] allocating slot=1
+[FORK] allocated new proc, pid=3
+[FORK] fork complete, child pid=3
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=13000
+[DEBUG] exec: after proc_freepagetable
+[EXIT] pid=3 exiting with status=0
+[WAIT] pid=1 reaping zombie child pid=3
+[FREE] freeing slot=1 pid=3
+[WAIT] pid=1 freed child pid=3
+$ t
+[FORK] parent pid=1 starting fork
+[ALLOC] allocating slot=1
+[FORK] allocated new proc, pid=4
+[FORK] fork complete, child pid=4
+[TRAP] kerneltrap: satp=87fff
+Current process: pid=4 name=shell state=4
+context.ra=0xffffffff800035ea context.sp=0xffffffff87f71a50
+kstack=0xffffffff87f72000 trapframe=0xffffffff87f7c000
+scause=0xc sepc=0x0 stval=0x0
+sp=0xffffffff87f71a50 ra=0xffffffff80002520
+panic: kerneltrap
+qemu-system-riscv64: terminating on signal 15 from pid 29712 (timeout)

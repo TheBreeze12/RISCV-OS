@@ -116,29 +116,17 @@ static int cmd_help(int argc, char **argv) {
     printf("内置命令:\n");
     printf("  exit        - 退出shell\n");
     printf("  help        - 显示此帮助信息\n");
-    printf("  echo <...>  - 回显参数\n");
     printf("  pid         - 显示当前进程ID\n");
     printf("  fork        - 测试fork功能\n");
     printf("  sleep <n>   - 睡眠n秒\n");
     printf("  clear       - 清除屏幕\n");
-    printf("  ls          - 列出文件（占位符）\n");
     printf("\n");
     printf("外部程序:\n");
     printf("  可以执行文件系统中的程序，例如: /hello\n");
     return 0;
 }
 
-// 内置命令：回显
-static int cmd_echo(int argc, char **argv) {
-    for (int i = 1; i < argc; i++) {
-        printf("%s", argv[i]);
-        if (i < argc - 1) {
-            printf(" ");
-        }
-    }
-    printf("\n");
-    return 0;
-}
+
 
 // 内置命令：显示进程ID
 static int cmd_pid(int argc, char **argv) {
@@ -193,12 +181,6 @@ static int cmd_clear(int argc, char **argv) {
     return 0;
 }
 
-// 内置命令：列出文件（占位符）
-static int cmd_ls(int argc, char **argv) {
-    printf("文件列表功能尚未实现\n");
-    printf("当前支持的程序: /hello, /init\n");
-    return 0;
-}
 
 // 执行内置命令
 static int execute_builtin(int argc, char **argv) {
@@ -209,9 +191,7 @@ static int execute_builtin(int argc, char **argv) {
         return cmd_exit(argc, argv);
     } else if (strcmp(argv[0], "help") == 0) {
         return cmd_help(argc, argv);
-    } else if (strcmp(argv[0], "echo") == 0) {
-        return cmd_echo(argc, argv);
-    } else if (strcmp(argv[0], "pid") == 0) {
+    }  else if (strcmp(argv[0], "pid") == 0) {
         return cmd_pid(argc, argv);
     } else if (strcmp(argv[0], "fork") == 0) {
         return cmd_fork(argc, argv);
@@ -219,10 +199,7 @@ static int execute_builtin(int argc, char **argv) {
         return cmd_sleep(argc, argv);
     } else if (strcmp(argv[0], "clear") == 0) {
         return cmd_clear(argc, argv);
-    } else if (strcmp(argv[0], "ls") == 0) {
-        return cmd_ls(argc, argv);
-    }
-    
+    } 
     return -1;  // 不是内置命令
 }
 // 执行外部程序（通过fork+exec）
@@ -314,6 +291,9 @@ int main(void) {
         if (argc == 0) {
             continue;
         }
+        
+        // 调试：显示解析的命令
+        // printf("[DEBUG] argc=%d, argv[0]='%s'\n", argc, argv[0]);
         
         // 执行命令
         execute(argc, argv);

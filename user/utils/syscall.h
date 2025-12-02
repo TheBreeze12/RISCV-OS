@@ -10,8 +10,14 @@
 #define SYS_WAIT    4
 #define SYS_READ    5
 #define SYS_WRITE   6
+#define SYS_OPEN    7
+#define SYS_CLOSE   8
 #define SYS_EXEC    9
+#define SYS_SBRK    10
 #define SYS_SLEEP   11
+#define SYS_FSTAT   12
+#define SYS_UNLINK  13
+#define SYS_MKDIR   14
 
 static inline long do_syscall(long n, long a0, long a1, long a2) {
     register long x10 asm("a0") = a0;
@@ -53,6 +59,33 @@ static inline int sys_exec(const char *path, char **argv) {
 
 static inline int sys_sleep(int n) {
     return (int)do_syscall(SYS_SLEEP, n, 0, 0);
+}
+
+// 文件操作标志
+#define O_RDONLY  0x000
+#define O_WRONLY  0x001
+#define O_RDWR    0x002
+#define O_CREATE  0x200
+#define O_TRUNC   0x400
+
+static inline int sys_open(const char *path, int flags) {
+    return (int)do_syscall(SYS_OPEN, (long)path, flags, 0);
+}
+
+static inline int sys_close(int fd) {
+    return (int)do_syscall(SYS_CLOSE, fd, 0, 0);
+}
+
+static inline int sys_unlink(const char *path) {
+    return (int)do_syscall(SYS_UNLINK, (long)path, 0, 0);
+}
+
+static inline int sys_mkdir(const char *path) {
+    return (int)do_syscall(SYS_MKDIR, (long)path, 0, 0);
+}
+
+static inline int sys_fstat(int fd, void *stat) {
+    return (int)do_syscall(SYS_FSTAT, fd, (long)stat, 0);
 }
 
 #endif

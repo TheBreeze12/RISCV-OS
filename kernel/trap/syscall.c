@@ -2,6 +2,9 @@
 #include "../proc/proc.h"
 #include "../utils/console.h"
 #include "../include/param.h"
+#include "../fs/file.h"
+#include "../fs/fs.h"
+#include "../fs/stat.h"
 
 // 声明exec函数
 extern int exec(char *path, char **argv);
@@ -52,7 +55,7 @@ uint64 sys_write(void) {
     
     // printf("[U->K] sys_write(fd=%d, buf=0x%x, n=%d) pid=%d\n", fd, (uint64)buf, n, p->pid);
     
-    if(fd == 1) { // stdout
+    if(fd == 1 || fd == 2) { // stdout or stderr
         char kbuf[PGSIZE];  // 内核缓冲区
         int total_written = 0;
         uint64 srcva = buf;
@@ -80,6 +83,11 @@ uint64 sys_write(void) {
         return total_written;
     }
     
+    // 文件写入
+    if(fd >= 0 && fd < NOFILE && p->ofile[fd]) {
+        return filewrite(p->ofile[fd], buf, n);
+    }
+    
     return -1; // 不支持的文件描述符
 }
 
@@ -93,7 +101,6 @@ uint64 sys_read(void) {
     if(n < 0)
         return -1;
     
-    // printf("[U->K] sys_read(fd=%d, buf=0x%x, n=%d) pid=%d\n", fd, (uint64)buf, n, p->pid);
     
     if(fd == 0) { // stdin
         char kbuf[PGSIZE];  // 内核缓冲区
@@ -141,19 +148,102 @@ uint64 sys_read(void) {
         return total_read;
     }
     
+    // 文件读取
+    if(fd >= 0 && fd < NOFILE && p->ofile[fd]) {
+        int ret = fileread(p->ofile[fd], buf, n);
+        return ret;
+    }
+    
     return -1; // 不支持的文件描述符
 }
 
 
+// 为进程分配文件描述符
+static int fdalloc(struct file *f) {
+    struct proc *p = myproc();
+    
+    // 从 fd=3 开始分配，跳过 stdin(0), stdout(1), stderr(2)
+    for(int fd = 3; fd < NOFILE; fd++) {
+        if(p->ofile[fd] == 0) {
+            p->ofile[fd] = f;
+            return fd;
+        }
+    }
+    return -1;
+}
+
 uint64 sys_open(void) {
-    printf("[U->K] sys_open()\n");
-    // TODO: 实现文件打开逻辑
-    return 0;
+    struct proc *p = myproc();
+    uint64 path_addr = p->trapframe->a0;
+    int flags = p->trapframe->a1;
+    char path[MAXPATH];
+    struct file *f;
+    struct inode *ip;
+    int fd;
+    
+    // 从用户空间复制路径
+    if(copyin_str(p->pagetable, path, path_addr, MAXPATH) < 0) {
+        return -1;
+    }
+    
+    
+    begin_op();
+    
+    if(flags & 0x200) {  // O_CREATE
+        // 创建新文件
+        ip = create(path, T_FILE, 0, 0);
+        if(ip == 0) {
+            end_op();
+            return -1;
+        }
+    } else {
+        // 打开已存在的文件
+        if((ip = namei(path)) == 0) {
+            end_op();
+            return -1;
+        }
+        ilock(ip);
+    }
+    
+    // 分配文件描述符
+    if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
+        if(f)
+            fileclose(f);
+        iunlockput(ip);
+        end_op();
+        return -1;
+    }
+    
+    // 设置文件结构
+    f->type = FD_INODE;
+    f->ip = ip;
+    f->off = 0;
+    f->readable = !(flags & 0x001);  // 不是 O_WRONLY
+    f->writable = (flags & 0x001) || (flags & 0x002);  // O_WRONLY 或 O_RDWR
+    
+    // 如果是 O_TRUNC，截断文件
+    if((flags & 0x400) && ip->type == T_FILE) {
+        itrunc(ip);
+    }
+    
+    iunlock(ip);
+    end_op();
+    
+    return fd;
 }
 
 uint64 sys_close(void) {
-    printf("[U->K] sys_close()\n");
-    // TODO: 实现文件关闭逻辑
+    struct proc *p = myproc();
+    int fd = p->trapframe->a0;
+    
+    
+    if(fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
+        return -1;
+    
+    struct file *f = p->ofile[fd];
+    p->ofile[fd] = 0;
+    fileclose(f);
+    
     return 0;
 }
 
@@ -168,7 +258,6 @@ uint64 sys_exec(void) {
     
     // 从用户空间读取路径
     if(copyin_str(p->pagetable, path, path_addr, MAXPATH) < 0) {
-        printf("[U->K] sys_exec: 无法读取路径\n");
         return -1;
     }
     
@@ -189,7 +278,6 @@ uint64 sys_exec(void) {
         
         // 读取参数字符串
         if(copyin_str(p->pagetable, kargv[i], arg_ptr, MAXPATH) < 0) {
-            printf("[U->K] sys_exec: 无法读取参数 %d\n", i);
             return -1;
         }
         
@@ -198,12 +286,10 @@ uint64 sys_exec(void) {
     }
     argv[argc] = 0;  // 参数列表以NULL结尾
     
-    printf("[U->K] sys_exec(path='%s', argc=%d)\n", path, argc);
     
     // 调用exec函数执行程序
     int ret = exec(path, argv);
     if(ret < 0) {
-        printf("[U->K] sys_exec: 执行失败\n");
         return -1;
     }
     
@@ -215,7 +301,6 @@ uint64 sys_sbrk(void) {
     struct proc *p = myproc();
     int n = p->trapframe->a0;
     uint64 addr = p->sz;
-    printf("[U->K] sys_sbrk(%d)\n", n);
     if(growproc(n) < 0)
         return -1;
     return addr;
@@ -252,6 +337,99 @@ uint64 sys_sleep(void) {
     return 0;
   }
 
+uint64 sys_fstat(void) {
+    struct proc *p = myproc();
+    int fd = p->trapframe->a0;
+    uint64 addr = p->trapframe->a1;
+    
+    // printf("[U->K] sys_fstat(fd=%d)\n", fd);
+    
+    if(fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
+        return -1;
+    
+    return filestat(p->ofile[fd], addr);
+}
+
+uint64 sys_unlink(void) {
+    struct proc *p = myproc();
+    uint64 path_addr = p->trapframe->a0;
+    char path[MAXPATH];
+    struct inode *ip, *dp;
+    char name[DIRSIZ];
+    uint off;
+    
+    if(copyin_str(p->pagetable, path, path_addr, MAXPATH) < 0) {
+        return -1;
+    }
+    
+    
+    begin_op();
+    
+    if((dp = nameiparent(path, name)) == 0) {
+        end_op();
+        return -1;
+    }
+    
+    ilock(dp);
+    
+    // 查找要删除的文件
+    if((ip = dirlookup(dp, name, &off)) == 0) {
+        iunlockput(dp);
+        end_op();
+        return -1;
+    }
+    
+    ilock(ip);
+    
+    // 不能删除目录（简化实现）
+    if(ip->type == T_DIR) {
+        iunlockput(ip);
+        iunlockput(dp);
+        end_op();
+        return -1;
+    }
+    
+    // 减少链接计数
+    ip->nlink--;
+    iupdate(ip);
+    iunlockput(ip);
+    
+    // 从目录中删除
+    struct dirent de;
+    de.inum = 0;
+    if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+        panic("unlink: writei");
+    
+    iunlockput(dp);
+    end_op();
+    
+    return 0;
+}
+
+uint64 sys_mkdir(void) {
+    struct proc *p = myproc();
+    uint64 path_addr = p->trapframe->a0;
+    char path[MAXPATH];
+    struct inode *ip;
+    
+    if(copyin_str(p->pagetable, path, path_addr, MAXPATH) < 0) {
+        return -1;
+    }
+    
+    
+    begin_op();
+    
+    if((ip = create(path, T_DIR, 0, 0)) == 0) {
+        end_op();
+        return -1;
+    }
+    
+    iunlockput(ip);
+    end_op();
+    
+    return 0;
+}
+
 // 系统调用分发函数
 void
 syscall(void)
@@ -274,12 +452,21 @@ syscall(void)
         [SYS_CLOSE]  = sys_close,
         [SYS_EXEC]   = sys_exec,
         [SYS_SBRK]   = sys_sbrk,
-        [SYS_SLEEP]  = sys_sleep,  
+        [SYS_SLEEP]  = sys_sleep,
+        [SYS_FSTAT]  = sys_fstat,
+        [SYS_UNLINK] = sys_unlink,
+        [SYS_MKDIR]  = sys_mkdir,
     };
 
     if(num > 0 && num < sizeof(syscalls)/sizeof(syscalls[0]) && syscalls[num]) {
         // 执行系统调用并将返回值放入a0寄存器
-        p->trapframe->a0 = syscalls[num]();
+        // 验证函数指针不为空
+        if(syscalls[num] == 0) {
+            printf("[ERROR] syscall %d function pointer is NULL!\n", num);
+            p->trapframe->a0 = -1;
+        } else {
+            p->trapframe->a0 = syscalls[num]();
+        }
     } else {
         printf("Unknown syscall %d from pid=%d\n", num, p->pid);
         p->trapframe->a0 = -1;

@@ -142,6 +142,9 @@ extern volatile int global_interrupt_count;
 #define SYS_EXEC    9
 #define SYS_SBRK    10
 #define SYS_SLEEP   11
+#define SYS_FSTAT   12
+#define SYS_UNLINK  13
+#define SYS_MKDIR   14
 // 陷阱帧结构体定义
 struct k_trapframe {
      /*   0 */ uint64 ra;
@@ -196,6 +199,9 @@ uint64 sys_open(void);
 uint64 sys_close(void);
 uint64 sys_exec(void);
 uint64 sys_sbrk(void);
+uint64 sys_fstat(void);
+uint64 sys_unlink(void);
+uint64 sys_mkdir(void);
 void syscall(void);
 
 // proc.c
@@ -250,6 +256,8 @@ struct file* filealloc(void);
 void fileclose(struct file*);
 struct file* filedup(struct file*);
 int fileread(struct file *f, uint64 addr, int n);
+int filewrite(struct file *f, uint64 addr, int n);
+int filestat(struct file *f, uint64 addr);
 void fileinit(void);
 
 // namei.c
@@ -299,6 +307,10 @@ void iclaim(int dev);
 void ireclaim(int dev);
 void stati(struct inode *ip, struct stat *st);
 struct inode* namei(char *path);
+struct inode* nameiparent(char *path, char *name);
+struct inode* dirlookup(struct inode *dp, char *name, uint *poff);
+int dirlink(struct inode *dp, char *name, uint inum);
+struct inode* create(char *path, short type, short major, short minor);
 
 // log.c
 void initlog(int dev, struct superblock *sb);

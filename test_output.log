@@ -1,4 +1,20 @@
 qemu-system-riscv64 -machine virt -bios none -kernel kernel.elf -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-qemu-system-riscv64: -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0: Failed to get "write" lock
-Is another process using the image [fs.img]?
-make: *** [Makefile:181：qemu] 错误 1
+S
+B
+S
+My RISC-V OS Starting...
+System initialization complete!
+Entering scheduler...
+第一个进程初始化，准备切换到用户态...
+forkret: enabling interrupts...
+forkret: calling fsinit...
+forkret: fsinit completed
+[DEBUG] exec: oldsz=0, p->sz=0
+[DEBUG] exec: before free, oldsz=0, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+
+=== RISC-V OS Shell ===
+输入 'help' 查看可用命令
+输入 'exit' 退出
+
+$ qemu-system-riscv64: terminating on signal 15 from pid 14409 (timeout)

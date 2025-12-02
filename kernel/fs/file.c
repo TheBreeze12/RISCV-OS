@@ -29,16 +29,27 @@ struct file*
 filealloc(void)
 {
   struct file *f;
+  int used = 0;
 
   acquire(&ftable.lock);
   for(f = ftable.file; f < ftable.file + NFILE; f++){
+    if(f->ref > 0) used++;
     if(f->ref == 0){
       f->ref = 1;
       release(&ftable.lock);
+      // 初始化文件结构的所有字段
+      f->type = FD_NONE;
+      f->readable = 0;
+      f->writable = 0;
+      f->ip = 0;
+      f->off = 0;
+      f->major = 0;
+      // printf("[FILE] filealloc: used=%d/%d\n", used, NFILE);
       return f;
     }
   }
   release(&ftable.lock);
+  // printf("[FILE] filealloc: FAILED! All %d files in use\n", NFILE);
   return 0;
 }
 
@@ -65,12 +76,20 @@ fileclose(struct file *f)
     panic("fileclose");
   if(--f->ref > 0){
     release(&ftable.lock);
+    // printf("[FILE] fileclose: ref now %d\n", f->ref);
     return;
   }
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;
+  f->readable = 0;
+  f->writable = 0;
+  f->ip = 0;
+  f->off = 0;
+  f->major = 0;
   release(&ftable.lock);
+  
+  // printf("[FILE] fileclose: freeing file (type=%d)\n", ff.type);
 
    if(ff.type == FD_INODE || ff.type == FD_DEVICE){
     begin_op();
@@ -109,6 +128,7 @@ fileread(struct file *f, uint64 addr, int n)
     return -1;
 
  if(f->type == FD_DEVICE){
+    // printf("[DEBUG] fileread: FD_DEVICE, major=%d\n", f->major);
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
       return -1;
     r = devsw[f->major].read(1, addr, n);
@@ -118,6 +138,7 @@ fileread(struct file *f, uint64 addr, int n)
       f->off += r;
     iunlock(f->ip);
   } else {
+    // printf("[DEBUG] fileread: unknown type %d\n", f->type);
     panic("fileread");
   }
 

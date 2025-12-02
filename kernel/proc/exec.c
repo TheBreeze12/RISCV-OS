@@ -71,7 +71,7 @@ exec(char *path, char **argv)
 
   p = myproc();
   oldsz = p->sz;
-  printf("[DEBUG] exec: oldsz=%x, p->sz=%x\n", oldsz, p->sz);
+  // printf("[DEBUG] exec: oldsz=%x, p->sz=%x\n", oldsz, p->sz);
 
   // Allocate some pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
@@ -126,11 +126,11 @@ exec(char *path, char **argv)
   
   // Commit to the user image.
   oldpagetable = p->pagetable;
-  printf("[DEBUG] exec: before free, oldsz=%x, new sz=%x\n", oldsz, sz);
+  // printf("[DEBUG] exec: before free, oldsz=%x, new sz=%x\n", oldsz, sz);
   p->pagetable = pagetable;  // 切换页表
   p->sz = sz;
   proc_freepagetable(oldpagetable, oldsz);  // 释放旧页表
-  printf("[DEBUG] exec: after proc_freepagetable\n");
+  // printf("[DEBUG] exec: after proc_freepagetable\n");
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:

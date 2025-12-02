@@ -83,16 +83,19 @@ struct proc*
 allocproc(void)
 {
   struct proc *p;
+  int slot = 0;
 
   // 遍历进程表查找空闲槽位
   for(p = proc; p < &proc[NPROC]; p++) {
     if(p->state == UNUSED) {
       goto found;
     }
+    slot++;
   }
   return 0;  // 进程表已满
 
 found:
+  // printf("[ALLOC] allocating slot=%d\n", slot);
   p->pid = allocpid();
   p->state = USED;
   p->sz = 0;  // 初始化进程大小为0
@@ -100,6 +103,10 @@ found:
   p->killed = 0;
   p->xstate = 0;
   p->chan = 0;
+  p->cwd = 0;
+  for(int i = 0; i < NOFILE; i++) {
+    p->ofile[i] = 0;
+  }
   // 分配trapframe页
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -130,6 +137,13 @@ found:
   p->context.sp = p->kstack + PGSIZE;
   strcpy(p->name, "allocproc");
   p->wake_time = 0;
+  
+  // 调试：确保 context.ra 被正确设置
+  if(p->context.ra == 0) {
+    printf("[ERROR] allocproc: context.ra is 0!\n");
+    panic("allocproc: context.ra is 0");
+  }
+  
   return p;
 }
 
@@ -141,6 +155,8 @@ found:
 void
 freeproc(struct proc *p)
 {
+  // printf("[FREE] freeing slot=%d pid=%d\n", slot, p->pid);
+  
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
@@ -152,6 +168,17 @@ freeproc(struct proc *p)
   if(p->kstack)
     kfree((void*)p->kstack);
   p->kstack = 0;
+  
+  // 清理文件描述符数组
+  for(int i = 0; i < NOFILE; i++) {
+    p->ofile[i] = 0;
+  }
+  
+  // 清理当前工作目录（注意：不要调用 iput，因为 exit() 已经处理了）
+  p->cwd = 0;
+  
+  // **关键修复**：清理 context，避免重用时出现问题
+  memset(&p->context, 0, sizeof(p->context));
   
   p->sz = 0;
   p->pid = 0;
@@ -335,7 +362,6 @@ yield(void)
 void
 sched(void)
 {
-  intr_on();
   struct proc *p = myproc();
   struct cpu *c = mycpu();
   if(p == 0)
@@ -344,7 +370,7 @@ sched(void)
   // 安全检查
   if(p->state == RUNNING)
   {
-    printf("sched: process running %s\n", p->name);
+    // printf("sched: process running %s\n", p->name);
     panic("sched: process running");
   }
 
@@ -415,8 +441,24 @@ exit(int status)
   if(p == 0)
     panic("exit: no proc");
 
+  // printf("[EXIT] pid=%d exiting with status=%d\n", p->pid, status);
+
   // 关闭所有打开的文件
-  // TODO: close all open files
+  for(int fd = 0; fd < NOFILE; fd++) {
+    if(p->ofile[fd]) {
+      struct file *f = p->ofile[fd];
+      fileclose(f);
+      p->ofile[fd] = 0;
+    }
+  }
+  
+  // 释放当前工作目录
+  begin_op();
+  if(p->cwd) {
+    iput(p->cwd);
+    p->cwd = 0;
+  }
+  end_op();
 
   p->xstate = status;
   p->state = ZOMBIE;
@@ -462,6 +504,7 @@ wait(uint64 addr)
         if(pp->state == ZOMBIE){
           // 找到僵尸子进程
           pid = pp->pid;
+          // printf("[WAIT] pid=%d reaping zombie child pid=%d\n", p->pid, pid);
           if(addr != 0) {
             // 复制退出状态到用户空间
             // TODO: copyout to user space
@@ -470,6 +513,7 @@ wait(uint64 addr)
             }
           }
           freeproc(pp);
+          // printf("[WAIT] pid=%d freed child pid=%d\n", p->pid, pid);
           return pid;
         }
       }
@@ -497,11 +541,16 @@ fork(void)
   struct proc *np;
   struct proc *p = myproc();
 
+  // printf("[FORK] parent pid=%d starting fork\n", p->pid);
+  
   // 分配新进程
   np = allocproc();
   if(np == 0){
+    // printf("[FORK] allocproc failed!\n");
     return -1;
   }
+  
+  // printf("[FORK] allocated new proc, pid=%d\n", np->pid);
 
   // 复制用户内存
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
@@ -520,7 +569,14 @@ fork(void)
   // 注意：epc应该已经在usertrap中正确设置了
 
   // 复制打开的文件描述符
-  // TODO: copy open files
+  for(int i = 0; i < NOFILE; i++) {
+    if(p->ofile[i])
+      np->ofile[i] = filedup(p->ofile[i]);
+  }
+  
+  // 复制当前工作目录
+  if(p->cwd)
+    np->cwd = idup(p->cwd);
 
   np->parent = p;
   strcpy(np->name, p->name);
@@ -529,6 +585,7 @@ fork(void)
 
   np->state = RUNNABLE;
 
+  // printf("[FORK] fork complete, child pid=%d\n", pid);
   return pid;
 }
 
@@ -561,6 +618,14 @@ forkret(void)
     printf("forkret: calling fsinit...\n");
     fsinit(ROOTDEV);
     printf("forkret: fsinit completed\n");
+
+    // 初始化当前工作目录为根目录
+    begin_op();
+    p->cwd = namei("/");
+    end_op();
+    if(p->cwd == 0) {
+      panic("forkret: cannot find root directory");
+    }
 
     first = 0;
     // ensure other cores see first=0.

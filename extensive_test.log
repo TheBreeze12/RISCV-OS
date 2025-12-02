@@ -1,0 +1,206 @@
+qemu-system-riscv64 -machine virt -bios none -kernel kernel.elf -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+S
+B
+S
+My RISC-V OS Starting...
+System initialization complete!
+Entering scheduler...
+第一个进程初始化，准备切换到用户态...
+forkret: enabling interrupts...
+forkret: calling fsinit...
+forkret: fsinit completed
+[DEBUG] exec: oldsz=0, p->sz=0
+[DEBUG] exec: before free, oldsz=0, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+
+=== RISC-V OS Shell ===
+输入 'help' 查看可用命令
+输入 'exit' 退出
+
+$ ls
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+[FILE] filealloc: used=0/100
+[FILE] fileclose: freeing file (type=2)
+[FILE] filealloc: used=0/100
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6328 init
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5352 hello
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6296 shell
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5384 myproc
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5432 touch
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 delete
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5512 echo
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 cat
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5640 ls
+[FILE] fileclose: freeing file (type=2)
+$ ls
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+[FILE] filealloc: used=0/100
+[FILE] fileclose: freeing file (type=2)
+[FILE] filealloc: used=0/100
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6328 init
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5352 hello
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6296 shell
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5384 myproc
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5432 touch
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 delete
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5512 echo
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 cat
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5640 ls
+[FILE] fileclose: freeing file (type=2)
+$ ls
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+[FILE] filealloc: used=0/100
+[FILE] fileclose: freeing file (type=2)
+[FILE] filealloc: used=0/100
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6328 init
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5352 hello
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6296 shell
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5384 myproc
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5432 touch
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 delete
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5512 echo
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 cat
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5640 ls
+[FILE] fileclose: freeing file (type=2)
+$ ls
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+[FILE] filealloc: used=0/100
+[FILE] fileclose: freeing file (type=2)
+[FILE] filealloc: used=0/100
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6328 init
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5352 hello
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6296 shell
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5384 myproc
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5432 touch
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 delete
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5512 echo
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 cat
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5640 ls
+[FILE] fileclose: freeing file (type=2)
+$ ls
+错误: 无法执行 ' '
+提示: 确保程序存在于文件系统中
+$ ls
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+[FILE] filealloc: used=0/100
+[FILE] fileclose: freeing file (type=2)
+[FILE] filealloc: used=0/100
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6328 init
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5352 hello
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 6296 shell
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5384 myproc
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5432 touch
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 delete
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5512 echo
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5456 cat
+[FILE] filealloc: used=1/100
+[FILE] fileclose: freeing file (type=2)
+FILE 5640 ls
+[FILE] fileclose: freeing file (type=2)
+$ ls
+[TRAP] kerneltrap: satp=87fff
+Current process: pid=8 name=shell state=4
+context.ra=0xffffffff80003598 context.sp=0xffffffff87f79a50
+kstack=0xffffffff87f7a000 trapframe=0xffffffff87f76000
+scause=0xc sepc=0x0 stval=0x0
+sp=0xffffffff87f799b0 ra=0xffffffff80002520
+panic: kerneltrap
+qemu-system-riscv64: terminating on signal 15 from pid 27656 (make)

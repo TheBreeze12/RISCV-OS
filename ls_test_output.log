@@ -1,0 +1,399 @@
+qemu-system-riscv64 -machine virt -bios none -kernel kernel.elf -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+S
+B
+S
+My RISC-V OS Starting...
+System initialization complete!
+Entering scheduler...
+第一个进程初始化，准备切换到用户态...
+forkret: enabling interrupts...
+forkret: calling fsinit...
+forkret: fsinit completed
+[DEBUG] exec: oldsz=0, p->sz=0
+[DEBUG] exec: before free, oldsz=0, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+
+=== RISC-V OS Shell ===
+输入 'help' 查看可用命令
+输入 'exit' 退出
+
+$ [U->K] sys_read(fd=0, n=255) pid=1
+ls
+[U->K] sys_exec(path='/ls', argc=1)
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+[U->K] sys_open(path='.', flags=0)
+[U->K] sys_open returns fd=3
+[U->K] sys_fstat(fd=3)
+[U->K] sys_close(fd=3)
+[U->K] sys_open(path='.', flags=0)
+[U->K] sys_open returns fd=3
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./init', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 6328 init
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./hello', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5352 hello
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./shell', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 6296 shell
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./myproc', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5384 myproc
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./touch', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5432 touch
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./delete', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5456 delete
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./echo', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5512 echo
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./cat', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5456 cat
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./ls', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5640 ls
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=2
+[U->K] sys_read returns 0
+[U->K] sys_close(fd=3)
+$ [U->K] sys_read(fd=0, n=255) pid=1
+ls .
+[U->K] sys_exec(path='/ls', argc=2)
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] exec: after proc_freepagetable
+[U->K] sys_open(path='.', flags=0)
+[U->K] sys_open returns fd=3
+[U->K] sys_fstat(fd=3)
+[U->K] sys_close(fd=3)
+[U->K] sys_open(path='.', flags=0)
+[U->K] sys_open returns fd=3
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./init', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 6328 init
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./hello', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5352 hello
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./shell', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 6296 shell
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./myproc', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5384 myproc
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./touch', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5432 touch
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./delete', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5456 delete
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./echo', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5512 echo
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./cat', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5456 cat
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_open(path='./ls', flags=0)
+[U->K] sys_open returns fd=4
+[U->K] sys_fstat(fd=4)
+[U->K] sys_close(fd=4)
+FILE 5640 ls
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 16
+[U->K] sys_read(fd=3, n=16) pid=3
+[U->K] sys_read returns 0
+[U->K] sys_close(fd=3)
+$ [U->K] sys_read(fd=0, n=255) pid=1
+exit
+再见！
+qemu-system-riscv64: terminating on signal 15 from pid 19756 (timeout)

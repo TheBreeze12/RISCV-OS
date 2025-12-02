@@ -76,7 +76,12 @@ UPROGS = \
 	$(U)/_init \
 	$(U)/_hello \
 	$(U)/_shell \
-	$(U)/_myproc \
+	$(U)/_t \
+	$(U)/_touch \
+	$(U)/_delete \
+	$(U)/_echo \
+	$(U)/_cat \
+	$(U)/_ls \
 
 # 通用用户程序构建规则（类似 xv6 的 _% 规则）
 # 从 user/xxx.c 生成 user/_xxxwakeup(
