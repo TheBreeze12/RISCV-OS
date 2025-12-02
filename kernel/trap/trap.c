@@ -106,6 +106,8 @@ kerneltrap(struct k_trapframe *tf)
 
   if((which_dev = devintr()) == 0){
     // interrupt or trap from an unknown source
+  printf("[TRAP] kerneltrap: satp=%x\n",  r_satp());
+
     printf("scause=0x%x sepc=0x%x stval=0x%x\n", scause, r_sepc(), r_stval());
     panic("kerneltrap");
   }
@@ -513,7 +515,7 @@ usertrapret(void)
 
   // 切换到用户页表
   uint64 satp = MAKE_SATP(p->pagetable);
-  printf("satp=%x\n", satp);
+  // printf("satp=%x\n", satp);
   // printf("[RET] satp=%x\n", satp);
   // 跳转到trampoline.S中的userret
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);

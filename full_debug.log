@@ -1,0 +1,194 @@
+riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -fno-pie -no-pie -c kernel/mm/vm.c -o kernel/mm/vm.o
+riscv64-unknown-elf-ld -z max-page-size=4096 -T kernel/kernel.ld -o kernel.elf kernel/trampoline.o kernel/boot/entry.o kernel/boot/start.o kernel/main.o kernel/utils/printf.o kernel/utils/uart.o kernel/utils/console.o kernel/mm/kalloc.o kernel/utils/string.o kernel/utils/spinlock.o kernel/utils/sleeplock.o kernel/mm/vm.o kernel/trap/trap.o kernel/trap/kernelvec.o kernel/trap/syscall.o kernel/trap/plic.o kernel/proc/proc.o kernel/proc/swtch.o kernel/proc/proc_test.o kernel/fs/file.o kernel/proc/exec.o kernel/fs/bio.o kernel/fs/virtio_disk.o kernel/fs/fs.o kernel/fs/log.o 
+qemu-system-riscv64 -machine virt -bios none -kernel kernel.elf -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+S
+B
+S
+My RISC-V OS Starting...
+System initialization complete!
+Entering scheduler...
+第一个进程初始化，准备切换到用户态...
+forkret: enabling interrupts...
+forkret: calling fsinit...
+forkret: fsinit completed
+[DEBUG] exec: oldsz=0, p->sz=0
+[DEBUG] exec: before free, oldsz=0, new sz=4000
+[DEBUG] proc_freepagetable: pagetable=ffffffff87f95000, sz=0
+[DEBUG] proc_freepagetable: about to uvmunmap
+[DEBUG] proc_freepagetable: about to free_pagetable
+[DEBUG] free_pagetable: pagetable=ffffffff87f95000
+[DEBUG] free_pagetable: freeing child at ffffffff87f94000
+[DEBUG] free_pagetable: pagetable=ffffffff87f94000
+[DEBUG] free_pagetable: freeing child at ffffffff87f93000
+[DEBUG] free_pagetable: pagetable=ffffffff87f93000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] proc_freepagetable: done
+[DEBUG] exec: after proc_freepagetable
+
+=== RISC-V OS Shell ===
+输入 'help' 查看可用命令
+输入 'exit' 退出
+
+$ hello
+[U->K] sys_exec(path='/hello', argc=1)
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] proc_freepagetable: pagetable=ffffffff87f94000, sz=4000
+[DEBUG] proc_freepagetable: about to uvmunmap
+[DEBUG] uvmunmap: va=0, npages=4, do_free=1
+[DEBUG] uvmunmap: freeing page at va=0, pa=ffffffff87f86000
+[DEBUG] uvmunmap: freeing page at va=1000, pa=ffffffff87f83000
+[DEBUG] uvmunmap: freeing page at va=2000, pa=ffffffff87f82000
+[DEBUG] uvmunmap: freeing page at va=3000, pa=ffffffff87f81000
+[DEBUG] uvmunmap: done
+[DEBUG] proc_freepagetable: about to free_pagetable
+[DEBUG] free_pagetable: pagetable=ffffffff87f94000
+[DEBUG] free_pagetable: freeing child at ffffffff87f85000
+[DEBUG] free_pagetable: pagetable=ffffffff87f85000
+[DEBUG] free_pagetable: freeing child at ffffffff87f84000
+[DEBUG] free_pagetable: pagetable=ffffffff87f84000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: freeing child at ffffffff87f93000
+[DEBUG] free_pagetable: pagetable=ffffffff87f93000
+[DEBUG] free_pagetable: freeing child at ffffffff87f88000
+[DEBUG] free_pagetable: pagetable=ffffffff87f88000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] proc_freepagetable: done
+[DEBUG] exec: after proc_freepagetable
+Hello, World!
+[DEBUG] freeproc: pid=2, pagetable=ffffffff87f80000, sz=4000
+[DEBUG] proc_freepagetable: pagetable=ffffffff87f80000, sz=4000
+[DEBUG] proc_freepagetable: about to uvmunmap
+[DEBUG] uvmunmap: va=0, npages=4, do_free=1
+[DEBUG] uvmunmap: freeing page at va=0, pa=ffffffff87f7d000
+[DEBUG] uvmunmap: freeing page at va=1000, pa=ffffffff87f7a000
+[DEBUG] uvmunmap: freeing page at va=2000, pa=ffffffff87f79000
+[DEBUG] uvmunmap: freeing page at va=3000, pa=ffffffff87f78000
+[DEBUG] uvmunmap: done
+[DEBUG] proc_freepagetable: about to free_pagetable
+[DEBUG] free_pagetable: pagetable=ffffffff87f80000
+[DEBUG] free_pagetable: freeing child at ffffffff87f7c000
+[DEBUG] free_pagetable: pagetable=ffffffff87f7c000
+[DEBUG] free_pagetable: freeing child at ffffffff87f7b000
+[DEBUG] free_pagetable: pagetable=ffffffff87f7b000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: freeing child at ffffffff87f7f000
+[DEBUG] free_pagetable: pagetable=ffffffff87f7f000
+[DEBUG] free_pagetable: freeing child at ffffffff87f7e000
+[DEBUG] free_pagetable: pagetable=ffffffff87f7e000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] proc_freepagetable: done
+$ hello
+[U->K] sys_exec(path='/hello', argc=1)
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] proc_freepagetable: pagetable=ffffffff87f80000, sz=4000
+[DEBUG] proc_freepagetable: about to uvmunmap
+[DEBUG] uvmunmap: va=0, npages=4, do_free=1
+[DEBUG] uvmunmap: freeing page at va=0, pa=ffffffff87f7b000
+[DEBUG] uvmunmap: freeing page at va=1000, pa=ffffffff87f7a000
+[DEBUG] uvmunmap: freeing page at va=2000, pa=ffffffff87f7d000
+[DEBUG] uvmunmap: freeing page at va=3000, pa=ffffffff87f95000
+[DEBUG] uvmunmap: done
+[DEBUG] proc_freepagetable: about to free_pagetable
+[DEBUG] free_pagetable: pagetable=ffffffff87f80000
+[DEBUG] free_pagetable: freeing child at ffffffff87f78000
+[DEBUG] free_pagetable: pagetable=ffffffff87f78000
+[DEBUG] free_pagetable: freeing child at ffffffff87f79000
+[DEBUG] free_pagetable: pagetable=ffffffff87f79000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: freeing child at ffffffff87f7f000
+[DEBUG] free_pagetable: pagetable=ffffffff87f7f000
+[DEBUG] free_pagetable: freeing child at ffffffff87f7e000
+[DEBUG] free_pagetable: pagetable=ffffffff87f7e000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] proc_freepagetable: done
+[DEBUG] exec: after proc_freepagetable
+Hello, World!
+[DEBUG] freeproc: pid=3, pagetable=ffffffff87f94000, sz=4000
+[DEBUG] proc_freepagetable: pagetable=ffffffff87f94000, sz=4000
+[DEBUG] proc_freepagetable: about to uvmunmap
+[DEBUG] uvmunmap: va=0, npages=4, do_free=1
+[DEBUG] uvmunmap: freeing page at va=0, pa=ffffffff87f85000
+[DEBUG] uvmunmap: freeing page at va=1000, pa=ffffffff87f82000
+[DEBUG] uvmunmap: freeing page at va=2000, pa=ffffffff87f83000
+[DEBUG] uvmunmap: freeing page at va=3000, pa=ffffffff87f86000
+[DEBUG] uvmunmap: done
+[DEBUG] proc_freepagetable: about to free_pagetable
+[DEBUG] free_pagetable: pagetable=ffffffff87f94000
+[DEBUG] free_pagetable: freeing child at ffffffff87f84000
+[DEBUG] free_pagetable: pagetable=ffffffff87f84000
+[DEBUG] free_pagetable: freeing child at ffffffff87f81000
+[DEBUG] free_pagetable: pagetable=ffffffff87f81000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: freeing child at ffffffff87f93000
+[DEBUG] free_pagetable: pagetable=ffffffff87f93000
+[DEBUG] free_pagetable: freeing child at ffffffff87f88000
+[DEBUG] free_pagetable: pagetable=ffffffff87f88000
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] free_pagetable: about to kfree pagetable
+[DEBUG] free_pagetable: done kfree
+[DEBUG] proc_freepagetable: done
+$ hello
+[U->K] sys_exec(path='/hello', argc=1)
+[DEBUG] exec: oldsz=4000, p->sz=4000
+[DEBUG] exec: before free, oldsz=4000, new sz=4000
+[DEBUG] proc_freepagetable: pagetable=ffffffff87f94000, sz=4000
+[DEBUG] proc_freepagetable: about to uvmunmap
+[DEBUG] uvmunmap: va=0, npages=4, do_free=1
+[DEBUG] uvmunmap: freeing page at va=0, pa=ffffffff87f81000
+[DEBUG] uvmunmap: freeing page at va=1000, pa=ffffffff87f82000
+[DEBUG] uvmunmap: freeing page at va=2000, pa=ffffffff87f85000
+[DEBUG] uvmunmap: freeing page at va=3000, pa=ffffffff87f87000
+[DEBUG] uvmunmap: done
+[DEBUG] proc_freepagetable: about to free_pagetable
+[DEBUG] free_pagetable: pagetable=ffffffff87f94000
+[DEBUG] free_pagetable: freeing child at ffffffff87f86000
+[DEBUG] free_pagetable: pagetable=ffffffff87f86000
+[DEBUG] free_pagetable: freeing child at ffffffff87f83000
+[DEBUG] free_pagetable: pagetable=ffffffff87f83000
+[DEBUG] free_pagetable: freeing child at 0
+[DEBUG] free_pagetable: freeing child at 0
+[DEBUG] free_pagetable: freeing child at 0
+[DEBUG] free_pagetable: freeing child at 0
+[DEBUG] free_pagetable: freeing child at 0
+[DEBUG] free_pagetable: freeing child at 1fe13000
+[DEBUG] free_pagetable: pagetable=1fe13000
+[TRAP] kerneltrap: satp=87fff
+scause=0xd sepc=0xffffffff80001724 stval=0x1fe13000
+panic: kerneltrap

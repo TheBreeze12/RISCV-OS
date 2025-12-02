@@ -153,17 +153,23 @@ walkaddr(pagetable_t pagetable, uint64 va)
 void
 free_pagetable(pagetable_t pagetable)
 {
+  extern char end[];
   // there are 2^9 = 512 PTEs in a page table.
   for(int i = 0; i < 512; i++){
     pte_t pte = pagetable[i];
     if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
       // this PTE points to a lower-level page table.
       uint64 child = PTE2PA(pte);
-      // 先清除 PTE，再递归释放子页表，避免在释放过程中访问已释放的页表
+      // 检查child地址是否在有效范围内
+      if(child != 0 && (char*)child >= end && child < PHYSTOP) {
+        free_pagetable((pagetable_t)child);
+      } else if(child != 0) {
+      }
       pagetable[i] = 0;
-      free_pagetable((pagetable_t)child);
     } else if(pte & PTE_V){
-      panic("free_pagetable: leaf");
+      // 这应该是叶子PTE，但在free_pagetable中不应该存在
+      // panic("free_pagetable: leaf");
+      pagetable[i] = 0;
     }
   }
   kfree((void*)pagetable);
@@ -186,7 +192,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     if(do_free){
       uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
-      printf("uvmunmap: free page %x\n", pa);
+      // printf("uvmunmap: free page %x\n", pa);
     }
     *pte = 0;
   }

@@ -25,6 +25,7 @@ exec(char *path, char **argv)
   struct proghdr ph;
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
+  uint64 oldsz;
 
   begin_op();
 
@@ -69,7 +70,8 @@ exec(char *path, char **argv)
   ip = 0;
 
   p = myproc();
-  uint64 oldsz = p->sz;
+  oldsz = p->sz;
+  printf("[DEBUG] exec: oldsz=%x, p->sz=%x\n", oldsz, p->sz);
 
   // Allocate some pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
@@ -124,14 +126,19 @@ exec(char *path, char **argv)
   
   // Commit to the user image.
   oldpagetable = p->pagetable;
+  printf("[DEBUG] exec: before free, oldsz=%x, new sz=%x\n", oldsz, sz);
   p->pagetable = pagetable;  // 切换页表
   p->sz = sz;
   proc_freepagetable(oldpagetable, oldsz);  // 释放旧页表
+  printf("[DEBUG] exec: after proc_freepagetable\n");
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:
   if(pagetable)
+  {
+  printf("2\n");
     proc_freepagetable(pagetable, sz);
+  }
   if(ip){
     iunlockput(ip);
     end_op();

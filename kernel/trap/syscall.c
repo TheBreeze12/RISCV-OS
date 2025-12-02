@@ -14,7 +14,7 @@ uint64 sys_exit(void) {
     struct proc *p = myproc();
     // 从trapframe中获取参数
     status = p->trapframe->a0;
-    printf("[U->K] sys_exit(%d) pid=%d\n", status, p->pid);
+    // printf("[U->K] sys_exit(%d) pid=%d\n", status, p->pid);
     
     // 关闭中断，然后调用exit
     intr_off();
@@ -24,19 +24,19 @@ uint64 sys_exit(void) {
 
 uint64 sys_getpid(void) {
     struct proc *p = myproc();
-    printf("[U->K] sys_getpid() pid=%d\n", p->pid);
+    // printf("[U->K] sys_getpid() pid=%d\n", p->pid);
     return p->pid;
 }
 
 uint64 sys_fork(void) {
-    printf("[U->K] sys_fork()\n");
+    // printf("[U->K] sys_fork()\n");
     return fork();
 }
 
 uint64 sys_wait(void) {
     struct proc *p = myproc();
     uint64 addr = p->trapframe->a0;
-    printf("[U->K] sys_wait()\n");
+    // printf("[U->K] sys_wait()\n");
     return wait(addr);
 }
 

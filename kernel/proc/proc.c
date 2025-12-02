@@ -4,7 +4,7 @@ extern char trampoline[];
 // 全局进程表和CPU数组
 struct cpu cpus[NCPU];
 struct proc proc[NPROC];
-
+struct proc *initproc;
 // PID分配
 static int nextpid = 1;
 
@@ -95,7 +95,11 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-
+  p->sz = 0;  // 初始化进程大小为0
+  p->parent = 0;
+  p->killed = 0;
+  p->xstate = 0;
+  p->chan = 0;
   // 分配trapframe页
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -230,7 +234,8 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
     p->state = UNUSED;
     p->kstack = 0;
-    // 初始化进程锁
+    // 初始化进程锁 
+    memset(p, 0, sizeof(struct proc));
   }
 }
 
@@ -248,7 +253,7 @@ userinit(void)
   struct proc *p;
 
   p = allocproc();
-  // initproc = p;
+  initproc = p;
   
   if(p == 0)
   panic("userinit: allocproc failed");
@@ -416,11 +421,11 @@ exit(int status)
   p->xstate = status;
   p->state = ZOMBIE;
 
-  // 将子进程交给init
   for(pp = proc; pp < &proc[NPROC]; pp++){
     if(pp->parent == p){
-      pp->parent = &proc[0];  // init进程
-      wakeup(&proc[0]);
+      pp->parent = initproc;  // init进程
+      if(initproc)
+        wakeup(initproc);
     }
   }
 

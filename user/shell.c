@@ -252,8 +252,9 @@ static int execute_external(int argc, char **argv) {
             printf("提示: 确保程序存在于文件系统中\n");
             sys_exit(1);
         }
+        sys_exit(0);
         // exec成功不会返回
-    } else {
+    } else if(pid>0) {
         // 父进程：等待子进程完成
         int status = sys_wait();
         return status;
