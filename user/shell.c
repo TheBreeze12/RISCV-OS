@@ -53,6 +53,12 @@ static int parse_line(char *buf, char **argv) {
     while (*p && argc < MAXARGS - 1) {
         if (*p == '\n' || *p == '\0')
             break;
+        
+        // 确保不是空白字符才开始新参数
+        if (isspace(*p)) {
+            p = skip_whitespace(p);
+            continue;
+        }
             
         argv[argc++] = p;
         p = find_whitespace(p);
@@ -204,14 +210,31 @@ static int execute_builtin(int argc, char **argv) {
 }
 // 执行外部程序（通过fork+exec）
 static int execute_external(int argc, char **argv) {
-    char *path = argv[0];
+    char *cmd = argv[0];
     
-    // 如果路径不是以/开头，添加/
+    // 验证命令不为空
+    if (cmd == 0 || cmd[0] == '\0') {
+        printf("错误: 命令为空\n");
+        return 1;
+    }
+    
+    // 跳过前导空格，找到命令的实际起始位置
+    char *cmd_start = cmd;
+    while (*cmd_start == ' ' || *cmd_start == '\t') {
+        cmd_start++;
+    }
+    if (*cmd_start == '\0') {
+        printf("错误: 命令为空\n");
+        return 1;
+    }
+    
+    // 构建完整路径
     char fullpath[64];
-    if (path[0] != '/') {
+    if (cmd_start[0] != '/') {
         fullpath[0] = '/';
-        strcpy(fullpath + 1, path);
-        path = fullpath;
+        strcpy(fullpath + 1, cmd_start);
+    } else {
+        strcpy(fullpath, cmd_start);
     }
     
     // Fork一个子进程
@@ -223,9 +246,19 @@ static int execute_external(int argc, char **argv) {
     
     if (pid == 0) {
         // 子进程：执行程序
-        int ret = sys_exec(path, argv);
+        // 创建一个新的 argv 数组，argv[0] 指向 fullpath（在子进程栈上）
+        // 这样可以避免 fork 后指针失效的问题
+        char *new_argv[MAXARGS];
+        new_argv[0] = fullpath;  // 使用 fullpath 作为 argv[0]
+        // 复制其他参数（如果有）
+        for (int i = 1; i < argc && i < MAXARGS - 1; i++) {
+            new_argv[i] = argv[i];
+        }
+        new_argv[argc] = 0;  // NULL 结尾
+        
+        int ret = sys_exec(fullpath, new_argv);
         if (ret < 0) {
-            printf("错误: 无法执行 '%s'\n", argv[0]);
+            printf("错误: 无法执行 '%s'\n", fullpath);
             printf("提示: 确保程序存在于文件系统中\n");
             sys_exit(1);
         }

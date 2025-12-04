@@ -3,7 +3,7 @@ ENTRY( main )
 
 SECTIONS
 {
-  . = 0x0;
+  . = 0x1000;  /* 改为 0x1000，避免地址 0 的问题 */
   
   .text : {
     *(.text .text.*)

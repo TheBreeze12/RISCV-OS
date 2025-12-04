@@ -90,11 +90,18 @@ exec(char *path, char **argv)
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
-    sp -= strlen(argv[argc]) + 1;
+    // 验证argv[argc]不为空指针
+    if(argv[argc] == 0)
+      goto bad;
+    // 计算字符串长度，限制最大长度防止栈溢出
+    int len = strlen(argv[argc]);
+    if(len >= MAXPATH)
+      goto bad;
+    sp -= len + 1;
     sp -= sp % 16; // riscv sp must be 16-byte aligned
     if(sp < stackbase)
       goto bad;
-    if(copyout(pagetable, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
+    if(copyout(pagetable, sp, argv[argc], len + 1) < 0)
       goto bad;
     ustack[argc] = sp;
   }
@@ -119,6 +126,16 @@ exec(char *path, char **argv)
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
     
+  // // 验证elf.entry有效
+  // if(elf.entry == 0 || elf.entry < 0x1000) {
+  //   printf("exec: invalid entry point 0x%x\n", elf.entry);
+  //   goto bad;
+  // }
+  if(elf.entry == 0) {
+    printf("exec: entry point is NULL\n");
+    goto bad;
+}
+  
   // 在切换页表之前设置 trapframe，避免访问已释放的页表
   // 注意：trapframe 是内核地址，但为了安全，在切换前设置
   p->trapframe->epc = elf.entry;
