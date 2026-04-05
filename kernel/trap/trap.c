@@ -37,9 +37,8 @@ void timer_interrupt(void) {
     // uint64 time=get_time();
     // 2. 处理定时器事件
     // printf("time: %d\n", time);
-    // 3. 触发任务调度
+  // 3. 唤醒到期睡眠进程
     wakeup_timer();
-    yield();
     // 4. 递增全局中断计数器
     global_interrupt_count++;
     // 5. 设置下次中断时间
@@ -131,9 +130,14 @@ kerneltrap(struct k_trapframe *tf)
     panic("kerneltrap");
   }
 
-  // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 )
+  // Timer interrupt: wake sleepers and only yield when a process is
+  // actually running, to avoid re-entering sched() in kernel paths.
+  if(which_dev == 2) {
     timer_interrupt();
+    struct proc *p = myproc();
+    if(p && p->state == RUNNING)
+      yield();
+  }
 
   w_sepc(sepc);
   w_sstatus(sstatus);
@@ -458,8 +462,10 @@ usertrap(void)
   if(scause & CAUSE_INTERRUPT_FLAG) {
     // 处理中断
     int which_dev=devintr();
-    if(which_dev == 2)
-    yield();
+    if(which_dev == 2) {
+      wakeup_timer();
+      yield();
+    }
   } else if(scause == CAUSE_USER_ECALL) {
     // 系统调用
     if(killed(p))
@@ -559,6 +565,7 @@ clockintr()
   // ask for the next timer interrupt. this also clears
   // the interrupt request. 1000000 is about a tenth
   // of a second.
+  wakeup_timer();
   w_stimecmp(r_time() + 1000000);
 }
 

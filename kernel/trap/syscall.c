@@ -10,6 +10,7 @@
 extern int exec(char *path, char **argv);
 
 #define BACKSPACE 0x100
+#define KIO_CHUNK 256
 
 // 具体的系统调用实现函数
 uint64 sys_exit(void) {
@@ -56,13 +57,13 @@ uint64 sys_write(void) {
     // printf("[U->K] sys_write(fd=%d, buf=0x%x, n=%d) pid=%d\n", fd, (uint64)buf, n, p->pid);
     
     if(fd == 1 || fd == 2) { // stdout or stderr
-        char kbuf[PGSIZE];  // 内核缓冲区
+        char kbuf[KIO_CHUNK];  // 小块缓冲，避免占满内核栈
         int total_written = 0;
         uint64 srcva = buf;
         
         // 分段复制，处理跨页情况
         while(n > 0) {
-            int to_copy = n > PGSIZE ? PGSIZE : n;
+            int to_copy = n > KIO_CHUNK ? KIO_CHUNK : n;
             
             // 从用户空间复制到内核缓冲区
             if(copyin(p->pagetable, kbuf, srcva, to_copy) < 0) {
@@ -103,7 +104,7 @@ uint64 sys_read(void) {
     
     
     if(fd == 0) { // stdin
-        char kbuf[PGSIZE];  // 内核缓冲区
+        char kbuf[KIO_CHUNK];  // 行编辑缓冲
         int total_read = 0;
         uint64 dstva = buf;
         int c;
@@ -131,6 +132,10 @@ uint64 sys_read(void) {
             }
             
             // 普通字符，回显并保存
+            if(total_read >= KIO_CHUNK) {
+                // 缓冲区满时先返回当前数据，剩余输入下次read再取
+                break;
+            }
             kbuf[total_read++] = (char)c;
             cons_putc(c);  // 回显输入
             
@@ -254,7 +259,11 @@ uint64 sys_exec(void) {
     
     char path[MAXPATH];
     char *argv[MAXARG];
-    char kargv[MAXARG][MAXPATH];
+    char *arg_pages[MAXARG];
+    for(int i = 0; i < MAXARG; i++) {
+        argv[i] = 0;
+        arg_pages[i] = 0;
+    }
     
     // 从用户空间读取路径
     if(copyin_str(p->pagetable, path, path_addr, MAXPATH) < 0) {
@@ -268,7 +277,7 @@ uint64 sys_exec(void) {
         uint64 arg_ptr;
         // 读取 argv[i] 的值（一个指针）
         if(copyin(p->pagetable, (char*)&arg_ptr, argv_addr + i * sizeof(uint64), sizeof(uint64)) < 0) {
-            break;
+            goto bad;
         }
         
         // 如果指针为NULL，说明参数列表结束
@@ -276,12 +285,19 @@ uint64 sys_exec(void) {
             break;
         }
         
+        char *argbuf = (char *)kalloc();
+        if(argbuf == 0) {
+            goto bad;
+        }
+
         // 读取参数字符串
-        if(copyin_str(p->pagetable, kargv[i], arg_ptr, MAXPATH) < 0) {
-            return -1;
+        if(copyin_str(p->pagetable, argbuf, arg_ptr, MAXPATH) < 0) {
+            kfree(argbuf);
+            goto bad;
         }
         
-        argv[i] = kargv[i];
+        arg_pages[argc] = argbuf;
+        argv[argc] = argbuf;
         argc++;
     }
     argv[argc] = 0;  // 参数列表以NULL结尾
@@ -289,12 +305,22 @@ uint64 sys_exec(void) {
     
     // 调用exec函数执行程序
     int ret = exec(path, argv);
-    if(ret < 0) {
-        return -1;
+    for(int i = 0; i < argc; i++) {
+        if(arg_pages[i])
+            kfree(arg_pages[i]);
     }
+    if(ret < 0)
+        return -1;
     
     // exec成功不会返回，但如果返回了，说明出错
     return ret;
+
+bad:
+    for(int i = 0; i < MAXARG; i++) {
+        if(arg_pages[i])
+            kfree(arg_pages[i]);
+    }
+    return -1;
 }
 
 uint64 sys_sbrk(void) {
